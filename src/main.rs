@@ -12,7 +12,7 @@ fn handle_client(stream: TcpStream) {
             if command.is_ok() {
                 let command = command.unwrap();
                 println!("Incomign command: {command}");
-                if command == "PING\r\n".to_string() {
+                if command.contains("PING") {
                     println!("responding with PONG\r\n");
                     let _ = stream.write_all(b"+PONG\r\n");
                 }
@@ -26,6 +26,8 @@ fn handle_client(stream: TcpStream) {
             e
         ),
     }
+
+    let _ = stream.shutdown(Shutdown::Both);
 }
 
 fn main() {
