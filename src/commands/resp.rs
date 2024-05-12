@@ -89,7 +89,7 @@ impl DataType {
             DataType::SimpleError(_s) => format!("-{}\r\n", ss),
             DataType::Integers(val) => format!(":{val}\r\n"),
             DataType::BulkString(_s) => format!("${}\r\n{}\r\n", ss.chars().count(), ss),
-            _ => format!("-Unsupported value or command: {}", ss),
+            _ => format!("-Unsupported value or command: {}\r\n", ss),
         }
     }
 }
@@ -102,7 +102,7 @@ impl std::fmt::Display for DataType {
             DataType::Integers(val) => write!(f, "Integer: {}", val),
             DataType::BulkString(s) => write!(f, "Bulk String: {:?}", s),
             DataType::Array(s) => write!(f, "Array: {:?}", s),
-            _ => write!(f, "{}", "-Unsupported value or command"),
+            _ => write!(f, "{}", "-Unsupported value or command\r\n"),
         }
     }
 }
