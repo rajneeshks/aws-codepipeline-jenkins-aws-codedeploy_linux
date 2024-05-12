@@ -37,7 +37,7 @@ impl<'a, 'b> Incoming<'b> {
                 let handler = array::ArrayTypeHandler(&cmd);
                 handler(&self.command, stream)
             }
-            _ => stream.write_all(format!("{}", self.command).as_bytes()),
+            _ => stream.write_all(format!("-{}\r\n", self.command).as_bytes()),
         }
     }
 }
