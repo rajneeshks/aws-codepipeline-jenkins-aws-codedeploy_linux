@@ -30,11 +30,11 @@ impl<'a, 'b> Incoming<'b> {
     pub fn handle(&self, stream: &mut TcpStream) -> std::io::Result<()> {
         match self.command {
             resp::DataType::SimpleString(ref cmd) => {
-                let handler = ss::SimpleStringCommandHandler(&cmd);
+                let handler = ss::simple_string_command_handler(&cmd);
                 handler(&self.command, stream)
             }
             resp::DataType::Array(ref cmd) => {
-                let handler = array::ArrayTypeHandler(&cmd);
+                let handler = array::array_type_handler(&cmd);
                 handler(&self.command, stream)
             }
             _ => stream.write_all(format!("-{}\r\n", self.command).as_bytes()),

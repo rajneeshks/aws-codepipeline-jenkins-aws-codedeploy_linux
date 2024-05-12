@@ -8,7 +8,7 @@ pub fn invalid(_: &resp::DataType, stream: &mut TcpStream) -> std::io::Result<()
     stream.write_all(format!("{}", d).as_bytes())
 }
 
-pub fn SimpleStringCommandHandler(
+pub fn simple_string_command_handler(
     cmd: &String,
 ) -> fn(&resp::DataType, &mut TcpStream) -> std::io::Result<()> {
     if cmd.contains("ping") {
