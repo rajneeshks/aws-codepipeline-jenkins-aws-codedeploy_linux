@@ -1,27 +1,37 @@
-use std::io::{Read, Write};
+use bytes::BytesMut;
+use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::thread;
 
+mod commands;
+
+//use crate::commands;
+
 fn handle_client(stream: TcpStream) {
     let mut stream = stream;
-    let mut data: [u8; 1500] = [0; 1500];
+    let mut buf = BytesMut::with_capacity(1500);
+    unsafe {
+        buf.set_len(1500);
+    }
     // read data from socket
 
-    while let Ok(_n) = stream.read(&mut data) {
-        if _n <= 0 {
+    while let Ok(len) = stream.read(&mut buf) {
+        if len <= 0 {
+            println!("read {len} bytes and hence existing...");
             break;
         }
-        println!("Received {_n} bytes from {}", stream.peer_addr().unwrap());
-        let command = String::from_utf8(data[0.._n].to_vec());
-        if command.is_ok() {
-            let command = command.unwrap();
-            println!("Incomign command: {command}");
-            if command.contains("PING") {
-                println!("responding with PONG\r\n");
-                let _ = stream.write_all(b"+PONG\r\n");
-            }
-        } else {
-            println!("not sure what we received...");
+        println!("Received {len} bytes from {}", stream.peer_addr().unwrap());
+        unsafe {
+            buf.set_len(len);
+        }
+        let cmd = commands::incoming::Incoming::new(&buf, len);
+        println!("comamnd: {}", cmd);
+        if let Err(e) = cmd.handle(&mut stream) {
+            println!("error handling incoming command: {}, Error: {}", cmd, e);
+            break;
+        }
+        unsafe {
+            buf.set_len(1500);
         }
     }
 
