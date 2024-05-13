@@ -1,13 +1,15 @@
 use bytes::BytesMut;
 use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::sync::Arc;
 use std::thread;
 
 mod commands;
+mod store;
 
 //use crate::commands;
 
-fn handle_client(stream: TcpStream) {
+fn handle_client(stream: TcpStream, db: Arc<store::db::DB>) {
     let mut stream = stream;
     let mut buf = BytesMut::with_capacity(1500);
     unsafe {
@@ -26,7 +28,7 @@ fn handle_client(stream: TcpStream) {
         }
         let cmd = commands::incoming::Incoming::new(&buf, len);
         println!("comamnd: {}", cmd);
-        if let Err(e) = cmd.handle(&mut stream) {
+        if let Err(e) = cmd.handle(&mut stream, &db) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;
         }
@@ -45,12 +47,14 @@ fn main() {
 
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+    let db = Arc::new(store::db::DB::new());
 
     for stream in listener.incoming() {
         match stream {
             Ok(_stream) => {
                 println!("accepted new connection");
-                let _ = thread::spawn(move || handle_client(_stream));
+                let dbc = Arc::clone(&db);
+                let _ = thread::spawn(move || handle_client(_stream, dbc));
             }
             Err(e) => {
                 println!("error: {}", e);

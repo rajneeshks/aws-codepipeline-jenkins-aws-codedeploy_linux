@@ -2,11 +2,13 @@
 use crate::commands::array;
 use crate::commands::resp;
 use crate::commands::ss;
+use crate::store::db;
 use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::Arc;
 
-const command_delimiter: &str = "\r\n";
+const COMMAND_DELIMITER: &str = "\r\n";
 
 pub struct Incoming<'a> {
     buf: &'a BytesMut,
@@ -27,15 +29,15 @@ impl<'a, 'b> Incoming<'b> {
         }
     }
 
-    pub fn handle(&self, stream: &mut TcpStream) -> std::io::Result<()> {
+    pub fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
         match self.command {
             resp::DataType::SimpleString(ref cmd) => {
                 let handler = ss::simple_string_command_handler(&cmd);
-                handler(&self.command, stream)
+                handler(&self.command, stream, db)
             }
             resp::DataType::Array(ref cmd) => {
                 let handler = array::array_type_handler(&cmd);
-                handler(&self.command, stream)
+                handler(&self.command, stream, db)
             }
             _ => stream.write_all(format!("-{}\r\n", self.command).as_bytes()),
         }
