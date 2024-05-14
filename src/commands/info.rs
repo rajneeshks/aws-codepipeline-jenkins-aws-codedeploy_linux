@@ -22,28 +22,17 @@ pub fn handler(
     }
     if replication {
         let mut master = false;
-        let mut role = "role:slave";
+        let mut role = "role:slave".to_string();
         if db.role_master() {
             master = true;
-            role = "role:master";
-            let repl_id = "master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
-            let offset = "master_repl_offset:0";
-            let _ = std::fmt::write(
-                &mut response,
-                format_args!(
-                    "${}\r\n{}\r\n{}\r\n{}\r\n",
-                    role.len() + repl_id.len() + offset.len(),
-                    role,
-                    repl_id,
-                    offset
-                ),
-            );
-        } else {
-            let _ = std::fmt::write(
-                &mut response,
-                format_args!("${}\r\n{}\r\n", role.len(), role),
-            );
+            role = "role:master".to_string();
+            role.push_str("\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb");
+            role.push_str("\r\nmaster_repl_offset:0");
         }
+        let _ = std::fmt::write(
+            &mut response,
+            format_args!("${}\r\n{}\r\n", role.len(), role),
+        );
     }
     stream.write_all(response.as_bytes())
 }
