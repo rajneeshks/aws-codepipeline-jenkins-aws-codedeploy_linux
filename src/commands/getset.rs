@@ -6,7 +6,18 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
-pub struct SetOptions {}
+#[derive(Default, Debug)]
+pub struct SetOptions {
+    pub expiry_in_ms: u64,
+}
+
+impl SetOptions {
+    fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+}
 
 pub fn set_handler(
     cmd: &resp::DataType,
@@ -21,8 +32,25 @@ pub fn set_handler(
     }
     let key = key_option.unwrap();
     let val = val_option.unwrap();
+    let mut options = SetOptions::new();
+    // search for expiry option
+    let mut argidx = 3;
+    let px_option = "px".to_string();
+    while let Some(opt) = array::get_nth_arg(cmd, argidx) {
+        match opt {
+            px_option => {
+                argidx += 1;
+                if let Some(expiry) = array::get_nth_arg(cmd, argidx) {
+                    if let Ok(expiry_ms) = expiry.parse::<u64>() {
+                        options.expiry_in_ms = expiry_ms;
+                    }
+                }
+            }
+            _ => {}
+        };
+        argidx += 1;
+    }
 
-    let options = SetOptions {};
     db.add(key.clone(), val.clone(), &options);
 
     let _ = std::fmt::write(&mut response, format_args!("+OK\r\n"));

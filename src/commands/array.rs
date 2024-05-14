@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 pub fn get_nth_arg(cmd: &resp::DataType, id: usize) -> Option<&String> {
     if let resp::DataType::Array(values) = cmd {
-        if values.len() < id {
+        if values.len() <= id {
             return None;
         }
         return Some(&values[id]);

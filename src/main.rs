@@ -7,6 +7,8 @@ use std::thread;
 mod commands;
 mod store;
 
+const EXPIRY_LOOP_TIME: u64 = 500; // 500 milli seconds
+
 //use crate::commands;
 
 fn handle_client(stream: TcpStream, db: Arc<store::db::DB>) {
@@ -48,6 +50,12 @@ fn main() {
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
     let db = Arc::new(store::db::DB::new());
+
+    // spawn expiry thread
+    {
+        let dbc = Arc::clone(&db);
+        let _ = thread::spawn(move || store::db::key_expiry_thread(dbc, EXPIRY_LOOP_TIME));
+    }
 
     for stream in listener.incoming() {
         match stream {
