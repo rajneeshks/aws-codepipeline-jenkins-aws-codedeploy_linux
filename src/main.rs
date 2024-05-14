@@ -1,4 +1,5 @@
 use bytes::BytesMut;
+use clap::Parser;
 use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::Arc;
@@ -8,8 +9,14 @@ mod commands;
 mod store;
 
 const EXPIRY_LOOP_TIME: u64 = 500; // 500 milli seconds
+const DEFAULT_LISTENING_PORT: u16 = 6379;
 
-//use crate::commands;
+#[derive(Debug, Default, Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[clap(default_value_t=DEFAULT_LISTENING_PORT, short, long)]
+    port: u16,
+}
 
 fn handle_client(stream: TcpStream, db: Arc<store::db::DB>) {
     let mut stream = stream;
@@ -24,12 +31,10 @@ fn handle_client(stream: TcpStream, db: Arc<store::db::DB>) {
             println!("read {len} bytes and hence existing...");
             break;
         }
-        println!("Received {len} bytes from {}", stream.peer_addr().unwrap());
         unsafe {
             buf.set_len(len);
         }
         let cmd = commands::incoming::Incoming::new(&buf, len);
-        println!("comamnd: {}", cmd);
         if let Err(e) = cmd.handle(&mut stream, &db) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;
@@ -47,8 +52,10 @@ fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
 
+    let args = Args::parse();
+    println!("Listening port: {}", args.port);
     // Uncomment this block to pass the first stage
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", args.port)).unwrap();
     let db = Arc::new(store::db::DB::new());
 
     // spawn expiry thread
