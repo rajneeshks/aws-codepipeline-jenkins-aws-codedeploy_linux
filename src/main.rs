@@ -16,9 +16,11 @@ const DEFAULT_LISTENING_PORT: u16 = 6379;
 struct Args {
     #[clap(default_value_t=DEFAULT_LISTENING_PORT, short, long)]
     port: u16,
+    #[clap(short, long)]
+    replicaof: Option<String>,
 }
 
-fn handle_client(stream: TcpStream, db: Arc<store::db::DB>) {
+fn handle_master_node_client(stream: TcpStream, db: Arc<store::db::DB>) {
     let mut stream = stream;
     let mut buf = BytesMut::with_capacity(1500);
     unsafe {
@@ -54,12 +56,19 @@ fn main() {
 
     let args = Args::parse();
     println!("Listening port: {}", args.port);
+    println!("replicaoff flag: {:?}", args.replicaof);
+
+    let mut role_master = true;
+    if let Some(replica) = args.replicaof {
+        role_master = false; // slave node
+    }
+
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind(format!("127.0.0.1:{}", args.port)).unwrap();
-    let db = Arc::new(store::db::DB::new());
+    let db = Arc::new(store::db::DB::new(role_master));
 
     // spawn expiry thread
-    {
+    if true {
         let dbc = Arc::clone(&db);
         let _ = thread::spawn(move || store::db::key_expiry_thread(dbc, EXPIRY_LOOP_TIME));
     }
@@ -67,9 +76,8 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(_stream) => {
-                println!("accepted new connection");
                 let dbc = Arc::clone(&db);
-                let _ = thread::spawn(move || handle_client(_stream, dbc));
+                let _ = thread::spawn(move || handle_master_node_client(_stream, dbc));
             }
             Err(e) => {
                 println!("error: {}", e);

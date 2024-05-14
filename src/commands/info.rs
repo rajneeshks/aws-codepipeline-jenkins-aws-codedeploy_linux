@@ -10,7 +10,7 @@ pub const COMMAND_NAME: &str = "info";
 pub fn handler(
     cmd: &resp::DataType,
     stream: &mut TcpStream,
-    _db: &Arc<db::DB>,
+    db: &Arc<db::DB>,
 ) -> std::io::Result<()> {
     // only be called when data type is appropriate
     let mut response = String::new(); //("*\r\n");
@@ -21,7 +21,10 @@ pub fn handler(
         }
     }
     if replication {
-        let role = "role:master";
+        let mut role = "role:slave";
+        if db.role_master() {
+            role = "role:master";
+        }
         let _ = std::fmt::write(
             &mut response,
             format_args!("${}\r\n{}\r\n", role.len(), role),

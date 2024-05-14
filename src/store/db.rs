@@ -1,6 +1,7 @@
 // maintain in memory DB
 
 use crate::commands::getset;
+use crate::store::node_info;
 use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::sync::Arc;
@@ -68,12 +69,14 @@ impl DBInternal {
 
 pub struct DB {
     store: Mutex<DBInternal>,
+    node_info: node_info::NodeInfo,
 }
 
 impl DB {
-    pub fn new() -> Self {
+    pub fn new(role_master: bool) -> Self {
         Self {
             store: Mutex::new(DBInternal::new()),
+            node_info: node_info::NodeInfo::new(role_master),
         }
     }
 
@@ -118,6 +121,10 @@ impl DB {
             }
         }
         None
+    }
+
+    pub fn role_master(&self) -> bool {
+        self.node_info.master
     }
 }
 
