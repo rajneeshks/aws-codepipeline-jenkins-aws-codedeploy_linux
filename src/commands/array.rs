@@ -1,5 +1,6 @@
 use crate::commands::echo;
 use crate::commands::getset;
+use crate::commands::info;
 use crate::commands::ping;
 use crate::commands::resp;
 use crate::commands::ss;
@@ -28,6 +29,8 @@ pub fn array_type_handler(
         return getset::set_handler;
     } else if cmd[0].contains("get") {
         return getset::get_handler;
+    } else if cmd[0].contains("info") {
+        return info::handler;
     }
 
     ss::invalid
