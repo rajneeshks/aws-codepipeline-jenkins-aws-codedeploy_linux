@@ -26,21 +26,22 @@ pub fn handler(
         if db.role_master() {
             master = true;
             role = "role:master";
-        }
-        let _ = std::fmt::write(
-            &mut response,
-            format_args!("${}\r\n{}\r\n", role.len(), role),
-        );
-        if master {
             let repl_id = "master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
-            let _ = std::fmt::write(
-                &mut response,
-                format_args!("${}\r\n{}\r\n", repl_id.len(), repl_id),
-            );
             let offset = "master_repl_offset:0";
             let _ = std::fmt::write(
                 &mut response,
-                format_args!("${}\r\n{}\r\n", offset.len(), offset),
+                format_args!(
+                    "${}\r\n{}\r\n{}\r\n{}\r\n",
+                    role.len() + repl_id.len() + offset.len(),
+                    role,
+                    repl_id,
+                    offset
+                ),
+            );
+        } else {
+            let _ = std::fmt::write(
+                &mut response,
+                format_args!("${}\r\n{}\r\n", role.len(), role),
             );
         }
     }
