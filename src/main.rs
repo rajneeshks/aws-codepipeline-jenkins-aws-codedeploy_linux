@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::thread;
 
 mod commands;
+mod rdb;
 mod slave;
 mod store;
 
