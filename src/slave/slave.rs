@@ -40,7 +40,7 @@ impl Ping {
 
     fn initiate_internal(&mut self, stream: &mut TcpStream) -> Result<(), String> {
         // send SYNC command
-        let command = "+PING\r\n";
+        let command = "*1\r\n$4\r\nPING\r\n";
         let resp = stream.write(command.as_bytes());
         if resp.is_err() {
             return Err(format!("Error sending PING command"));
