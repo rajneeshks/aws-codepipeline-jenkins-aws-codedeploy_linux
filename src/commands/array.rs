@@ -2,6 +2,7 @@ use crate::commands::echo;
 use crate::commands::getset;
 use crate::commands::info;
 use crate::commands::ping;
+use crate::commands::psync;
 use crate::commands::repl;
 use crate::commands::resp;
 use crate::commands::ss;
@@ -34,6 +35,8 @@ pub fn array_type_handler(
         return info::handler;
     } else if cmd[0].contains("replconf") {
         return repl::handler;
+    } else if cmd[0].contains("psync") {
+        return psync::handler;
     }
 
     ss::invalid

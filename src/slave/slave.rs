@@ -21,7 +21,7 @@ impl Init {
 }
 
 impl State for Init {
-    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
         let new_state = Box::new(Ping::new());
         new_state.clone().initiate(stream, config);
         new_state
@@ -209,17 +209,73 @@ impl State for ReplConf2 {
 }
 
 #[derive(Debug, Clone)]
-struct PSync {}
+struct PSync {
+    retries: u8,
+}
 
 impl PSync {
+    fn new() -> Self {
+        Self { retries: 0 }
+    }
+
+    fn initiate_internal(
+        &mut self,
+        stream: &mut TcpStream,
+        _config: &Config,
+    ) -> Result<(), String> {
+        let command = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
+        let resp = stream.write(command.as_bytes());
+        if resp.is_err() {
+            return Err(format!("Error sending PSYNC command"));
+        }
+        let mut buf = BytesMut::with_capacity(500);
+        unsafe {
+            buf.set_len(500);
+        }
+        if let Ok(len) = stream.read(&mut buf) {
+            if len <= 0 {
+                // sleep and retry
+                return Err("Did not receive appropriate command response (PSYNC)".to_string());
+            }
+            unsafe {
+                buf.set_len(len);
+            }
+            let cmd = incoming::Incoming::new(&buf, len);
+            if cmd.get_command().to_lowercase().contains("ok") {
+                return Ok(());
+            }
+        }
+        Err("Unable to move to next state (PSYNC) - may be retrying!!".to_string())
+    }
+}
+
+impl State for PSync {
+    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+        while self.retries < MAX_RETRIES {
+            self.retries += 1;
+            if let Ok(_resp) = self.initiate_internal(stream, config) {
+                return Box::new(Complete::new());
+            } else {
+                // sleep for sometime
+                thread::sleep(time::Duration::from_millis(1000 * self.retries as u64));
+            }
+        }
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Complete {}
+
+impl Complete {
     fn new() -> Self {
         Self {}
     }
 }
 
-impl State for PSync {
+impl State for Complete {
     fn initiate(self: Box<Self>, _stream: &mut TcpStream, _config: &Config) -> Box<dyn State> {
-        Box::new(PSync::new())
+        self
     }
 }
 
