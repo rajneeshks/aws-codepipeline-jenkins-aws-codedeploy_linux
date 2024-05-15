@@ -241,7 +241,8 @@ impl PSync {
                 buf.set_len(len);
             }
             let cmd = incoming::Incoming::new(&buf, len);
-            if cmd.get_command().to_lowercase().contains("ok") {
+            println!("PSYNC command response received: {}", cmd);
+            if cmd.get_command().to_lowercase().contains("fullresync") {
                 return Ok(());
             }
         }
