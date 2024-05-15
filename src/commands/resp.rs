@@ -57,14 +57,16 @@ impl DataType {
     }
 
     fn tokenize(buf: &BytesMut) -> Result<Vec<String>, String> {
-        let istr = String::from_utf8(buf.to_vec()).unwrap();
-        let tokens = istr.split("\r\n").fold(Vec::<String>::new(), |mut acc, s| {
-            if s.len() > 1 {
-                acc.push(s.to_string());
-            }
-            acc
-        });
-        Ok(tokens)
+        if let Ok(istr) = String::from_utf8(buf.to_vec()) {
+            let tokens = istr.split("\r\n").fold(Vec::<String>::new(), |mut acc, s| {
+                if s.len() > 1 {
+                    acc.push(s.to_string());
+                }
+                acc
+            });
+            return Ok(tokens);
+        }
+        Err("Error parsing input command!!".to_string())
     }
 
     fn parse(buf: &BytesMut) -> Result<DataType, String> {
