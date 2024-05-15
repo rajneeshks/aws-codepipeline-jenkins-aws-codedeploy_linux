@@ -42,6 +42,14 @@ impl<'a, 'b> Incoming<'b> {
             _ => stream.write_all(format!("-{}\r\n", self.command).as_bytes()),
         }
     }
+
+    // returns first token - could be command or a response
+    pub fn get_command(&self) -> String {
+        match self.command {
+            resp::DataType::SimpleString(ref cmd) => cmd.clone(),
+            _ => return "not implemented".to_string(),
+        }
+    }
 }
 
 impl std::fmt::Display for Incoming<'_> {
