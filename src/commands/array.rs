@@ -2,6 +2,7 @@ use crate::commands::echo;
 use crate::commands::getset;
 use crate::commands::info;
 use crate::commands::ping;
+use crate::commands::repl;
 use crate::commands::resp;
 use crate::commands::ss;
 use crate::store::db;
@@ -31,6 +32,8 @@ pub fn array_type_handler(
         return getset::get_handler;
     } else if cmd[0].contains("info") {
         return info::handler;
+    } else if cmd[0].contains("replconf") {
+        return repl::handler;
     }
 
     ss::invalid

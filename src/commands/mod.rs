@@ -4,5 +4,6 @@ pub mod getset;
 pub mod incoming;
 pub mod info;
 pub mod ping;
+pub mod repl;
 pub mod resp;
 pub mod ss;

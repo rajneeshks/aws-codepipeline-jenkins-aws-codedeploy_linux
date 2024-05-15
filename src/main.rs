@@ -100,7 +100,11 @@ fn main() {
 
     let mut slave: Option<slave::slave::Config> = None;
     if !role_master {
-        slave = Some(slave::slave::Config::new(master_ip_addr, master_port));
+        slave = Some(slave::slave::Config::new(
+            master_ip_addr,
+            master_port,
+            args.port,
+        ));
         if let Some(mut slave_cfg) = slave {
             slave_cfg.initiate();
         }
