@@ -36,20 +36,16 @@ impl ReplicationNode {
         }
     }
 
-    pub fn connect(&mut self) {
-        if self.connection.is_none() {
-            let c = TcpStream::connect(format!("{}:{}", self.ip, self.port));
-            self.connection = c.ok();
-        }
-    }
-
     pub fn replicate(&mut self, buffers: &Vec<BytesMut>) -> std::io::Result<()> {
         if !self.ready {
             println!("node not ready for replication...");
             return Ok(());
         }
         if self.connection.is_none() {
-            self.connect();
+            return Err(std::io::Error::new(
+                ErrorKind::Other,
+                "slave is not connected!",
+            ));
         }
         if let Some(mut connection) = self.connection.as_mut() {
             for cmd in self.repl_id as usize..buffers.len() {
@@ -58,8 +54,6 @@ impl ReplicationNode {
                     return rslt;
                 }
                 self.repl_id += 1;
-                // read data and discard
-                discard_incoming_data(connection);
             }
         }
         Err(std::io::Error::new(
@@ -143,7 +137,7 @@ impl ReplicationConfig {
 
     // when PSync command is invoked, we only know the peer address as part
     // of the command
-    pub fn update_psync_repl_id(&self, peer_addr: &str, repl_id: i64) {
+    pub fn update_psync_repl_id(&self, peer_addr: &str, repl_id: i64, stream: &mut TcpStream) {
         let mut replcfg = self.replcfg.write().unwrap();
         for i in 0..replcfg.nodes.len() {
             if replcfg.nodes[i].peer_addr == *peer_addr {
@@ -154,6 +148,10 @@ impl ReplicationConfig {
                 );
                 // finally mark it ready
                 replcfg.nodes[i].ready = true;
+                if let Ok(cloned_stream) = stream.try_clone() {
+                    println!("able to clone connection!!!!");
+                    replcfg.nodes[i].connection = Some(cloned_stream);
+                }
             }
         }
     }

@@ -48,7 +48,7 @@ pub fn handler(
 
 fn parse_psync_options(
     cmd: &resp::DataType,
-    stream: &TcpStream,
+    stream: &mut TcpStream,
     replcfg: &Arc<repl::ReplicationConfig>,
 ) -> Result<(), String> {
     let peer_addr_complete = format!("{}", stream.peer_addr().unwrap());
@@ -68,7 +68,7 @@ fn parse_psync_options(
         //    optidx += 1;
         //if let Ok(syncid) = sync_id.parse::<i32>() {
         if let Ok(syncid) = o.parse::<i64>() {
-            replcfg.update_psync_repl_id(&peer_addr_complete, syncid);
+            replcfg.update_psync_repl_id(&peer_addr_complete, syncid, stream);
             return Ok(());
         } else {
             println!("failed to parse {o} into integer!");
