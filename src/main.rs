@@ -126,6 +126,16 @@ fn main() {
         ));
         if let Some(mut slave_cfg) = slave {
             slave_cfg.initiate();
+            // new thread to handle further communication
+            if let Some(stream) = slave_cfg.stream.take() {
+                let dbc = Arc::clone(&db);
+                let tx_ch_clone = repl_tx_ch.clone();
+                let replcfg_cp = Arc::clone(&replcfg);
+                let _ =
+                    thread::spawn(move || handle_connection(stream, dbc, replcfg_cp, tx_ch_clone));
+            } else {
+                println!("slave connection did not survive!!!");
+            }
         }
     }
 

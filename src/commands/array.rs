@@ -33,7 +33,9 @@ pub fn array_type_handler(
     &Arc<repl::ReplicationConfig>,
     &Sender<BytesMut>,
 ) -> std::io::Result<()> {
-    if cmd[0].contains("echo") {
+    if cmd[0].contains("ok") {
+        return ss::dropit;
+    } else if cmd[0].contains("echo") {
         return echo::handler;
     } else if cmd[0].contains("ping") {
         return ping::handler;

@@ -20,6 +20,17 @@ pub fn invalid(
     stream.write_all(format!("{}", d).as_bytes())
 }
 
+pub fn dropit(
+    _: &incoming::Incoming,
+    stream: &mut TcpStream,
+    _store: &Arc<db::DB>,
+    _replcfg: &Arc<repl::ReplicationConfig>,
+    _tx_ch: &Sender<BytesMut>,
+) -> std::io::Result<()> {
+    println!("dropping it --- its slave connection likely");
+    Ok(())
+}
+
 pub fn simple_string_command_handler(
     cmd: &String,
 ) -> fn(
@@ -31,6 +42,8 @@ pub fn simple_string_command_handler(
 ) -> std::io::Result<()> {
     if cmd.contains("ping") {
         return ping::handler;
+    } else if cmd.contains("ok") {
+        return dropit;
     }
 
     invalid

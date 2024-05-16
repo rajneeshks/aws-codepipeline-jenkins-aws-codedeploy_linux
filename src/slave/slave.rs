@@ -288,7 +288,7 @@ pub struct Config {
     master_ip_addr: String,
     master_port: u16,
     my_port: u16,
-    stream: Option<TcpStream>,
+    pub stream: Option<TcpStream>,
     state: Option<Box<dyn State>>,
 }
 
