@@ -59,7 +59,7 @@ impl DataType {
     fn tokenize(buf: &BytesMut) -> Result<Vec<String>, String> {
         if let Ok(istr) = String::from_utf8(buf.to_vec()) {
             let tokens = istr.split("\r\n").fold(Vec::<String>::new(), |mut acc, s| {
-                if s.len() > 1 {
+                if s.len() >= 1 {
                     acc.push(s.to_string());
                 }
                 acc

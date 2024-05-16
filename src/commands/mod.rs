@@ -5,6 +5,6 @@ pub mod incoming;
 pub mod info;
 pub mod ping;
 pub mod psync;
-pub mod repl;
+pub mod replcmd;
 pub mod resp;
 pub mod ss;

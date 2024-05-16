@@ -1,13 +1,17 @@
 use crate::commands::echo;
 use crate::commands::getset;
+use crate::commands::incoming;
 use crate::commands::info;
 use crate::commands::ping;
 use crate::commands::psync;
-use crate::commands::repl;
+use crate::commands::replcmd;
 use crate::commands::resp;
 use crate::commands::ss;
+use crate::repl::repl;
 use crate::store::db;
+use bytes::BytesMut;
 use std::net::TcpStream;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 pub fn get_nth_arg(cmd: &resp::DataType, id: usize) -> Option<&String> {
@@ -22,7 +26,13 @@ pub fn get_nth_arg(cmd: &resp::DataType, id: usize) -> Option<&String> {
 
 pub fn array_type_handler(
     cmd: &Vec<String>,
-) -> fn(&resp::DataType, &mut TcpStream, &Arc<db::DB>) -> std::io::Result<()> {
+) -> fn(
+    &incoming::Incoming,
+    &mut TcpStream,
+    &Arc<db::DB>,
+    &Arc<repl::ReplicationConfig>,
+    &Sender<BytesMut>,
+) -> std::io::Result<()> {
     if cmd[0].contains("echo") {
         return echo::handler;
     } else if cmd[0].contains("ping") {
@@ -34,7 +44,7 @@ pub fn array_type_handler(
     } else if cmd[0].contains("info") {
         return info::handler;
     } else if cmd[0].contains("replconf") {
-        return repl::handler;
+        return replcmd::handler;
     } else if cmd[0].contains("psync") {
         return psync::handler;
     }

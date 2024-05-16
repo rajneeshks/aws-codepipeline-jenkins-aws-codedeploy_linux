@@ -228,9 +228,9 @@ impl PSync {
         if resp.is_err() {
             return Err(format!("Error sending PSYNC command"));
         }
-        let mut buf = BytesMut::with_capacity(500);
+        let mut buf = BytesMut::with_capacity(1500);
         unsafe {
-            buf.set_len(500);
+            buf.set_len(1500);
         }
         if let Ok(len) = stream.read(&mut buf) {
             if len <= 0 {
@@ -239,6 +239,10 @@ impl PSync {
             }
             unsafe {
                 buf.set_len(len);
+            }
+            if len > 10 {
+                println!("PSync Assuming success - need to parse this input properly!!");
+                return Ok(());
             }
             let cmd = incoming::Incoming::new(&buf, len);
             println!("PSYNC command response received: {}", cmd);

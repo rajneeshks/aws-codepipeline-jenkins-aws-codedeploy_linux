@@ -2,11 +2,14 @@ use bytes::BytesMut;
 use clap::Parser;
 use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::sync::mpsc;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
 
 mod commands;
 mod rdb;
+mod repl;
 mod slave;
 mod store;
 
@@ -22,7 +25,12 @@ struct Args {
     replicaof: Option<String>,
 }
 
-fn handle_master_node_client(stream: TcpStream, db: Arc<store::db::DB>) {
+fn handle_connection(
+    stream: TcpStream,
+    db: Arc<store::db::DB>,
+    replcfg: Arc<repl::repl::ReplicationConfig>,
+    repl_ch_tx: Sender<BytesMut>,
+) {
     let mut stream = stream;
     let mut buf = BytesMut::with_capacity(1500);
     unsafe {
@@ -39,7 +47,7 @@ fn handle_master_node_client(stream: TcpStream, db: Arc<store::db::DB>) {
             buf.set_len(len);
         }
         let cmd = commands::incoming::Incoming::new(&buf, len);
-        if let Err(e) = cmd.handle(&mut stream, &db) {
+        if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;
         }
@@ -100,6 +108,16 @@ fn main() {
     }
 
     let mut slave: Option<slave::slave::Config> = None;
+    let (repl_tx_ch, repl_rx_ch) = mpsc::channel();
+    let replcfg = Arc::new(repl::repl::ReplicationConfig::new());
+
+    // start replication thread
+    if true {
+        let dbc = Arc::clone(&db);
+        let replcfg_cp = Arc::clone(&replcfg);
+        let _ = thread::spawn(move || repl::repl::replicator(replcfg_cp, repl_rx_ch, dbc));
+    }
+
     if !role_master {
         slave = Some(slave::slave::Config::new(
             master_ip_addr,
@@ -115,7 +133,10 @@ fn main() {
         match stream {
             Ok(_stream) => {
                 let dbc = Arc::clone(&db);
-                let _ = thread::spawn(move || handle_master_node_client(_stream, dbc));
+                let tx_ch_clone = repl_tx_ch.clone();
+                let replcfg_cp = Arc::clone(&replcfg);
+                let _ =
+                    thread::spawn(move || handle_connection(_stream, dbc, replcfg_cp, tx_ch_clone));
             }
             Err(e) => {
                 println!("error: {}", e);

@@ -2,18 +2,20 @@
 use crate::commands::array;
 use crate::commands::resp;
 use crate::commands::ss;
+use crate::repl::repl;
 use crate::store::db;
 use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 const COMMAND_DELIMITER: &str = "\r\n";
 
 pub struct Incoming<'a> {
-    buf: &'a BytesMut,
+    pub buf: &'a BytesMut,
     length: usize,
-    command: resp::DataType,
+    pub command: resp::DataType,
 }
 
 impl<'a, 'b> Incoming<'b> {
@@ -29,15 +31,21 @@ impl<'a, 'b> Incoming<'b> {
         }
     }
 
-    pub fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
+    pub fn handle(
+        &self,
+        stream: &mut TcpStream,
+        db: &Arc<db::DB>,
+        replcfg: &Arc<repl::ReplicationConfig>,
+        repl_ch: &Sender<BytesMut>,
+    ) -> std::io::Result<()> {
         match self.command {
             resp::DataType::SimpleString(ref cmd) => {
                 let handler = ss::simple_string_command_handler(&cmd);
-                handler(&self.command, stream, db)
+                handler(self, stream, db, replcfg, repl_ch)
             }
             resp::DataType::Array(ref cmd) => {
                 let handler = array::array_type_handler(&cmd);
-                handler(&self.command, stream, db)
+                handler(self, stream, db, replcfg, repl_ch)
             }
             _ => stream.write_all(format!("-{}\r\n", self.command).as_bytes()),
         }
