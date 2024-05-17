@@ -9,42 +9,55 @@ use std::net::TcpStream;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-pub fn invalid(
-    _: &incoming::Incoming,
-    stream: &mut TcpStream,
-    _store: &Arc<db::DB>,
-    _replcfg: &Arc<repl::ReplicationConfig>,
-    _tx_ch: &Sender<BytesMut>,
-) -> std::io::Result<()> {
+pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
     let d = resp::DataType::Invalid("invalid command\r\n".to_string());
     stream.write_all(format!("{}", d).as_bytes())
 }
 
-pub fn dropit(
-    _: &incoming::Incoming,
-    stream: &mut TcpStream,
-    _store: &Arc<db::DB>,
-    _replcfg: &Arc<repl::ReplicationConfig>,
-    _tx_ch: &Sender<BytesMut>,
-) -> std::io::Result<()> {
-    println!("dropping it --- its slave connection likely");
-    Ok(())
+pub struct InvalidCommand {}
+impl InvalidCommand {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl incoming::CommandHandler for InvalidCommand {
+    fn handle(
+        &self,
+        stream: &mut TcpStream,
+        _store: &Arc<db::DB>,
+    ) -> std::io::Result<()> {
+        invalid(stream)
+    }
+}
+
+pub struct OkResponse {}
+impl OkResponse {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl incoming::CommandHandler for OkResponse {
+    fn handle(
+        &self,
+        _stream: &mut TcpStream,
+        _store: &Arc<db::DB>,
+    ) -> std::io::Result<()> {
+        println!("dropping it --- its slave connection likely");
+        Ok(())
+    }
 }
 
 pub fn simple_string_command_handler(
     cmd: &String,
-) -> fn(
-    &incoming::Incoming,
-    &mut TcpStream,
-    &Arc<db::DB>,
-    &Arc<repl::ReplicationConfig>,
-    &Sender<BytesMut>,
-) -> std::io::Result<()> {
+) -> Box<dyn incoming::CommandHandler> 
+{
     if cmd.contains("ping") {
-        return ping::handler;
+        return Box::new(ping::Ping::new());
     } else if cmd.contains("ok") {
-        return dropit;
+        return Box::new(OkResponse::new());
     }
 
-    invalid
+    Box::new(InvalidCommand::new())
 }

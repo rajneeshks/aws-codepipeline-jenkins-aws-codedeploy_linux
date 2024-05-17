@@ -46,7 +46,7 @@ fn handle_connection(
         unsafe {
             buf.set_len(len);
         }
-        let cmd = commands::incoming::Incoming::new(&buf, len);
+        let cmd = commands::incoming::Incoming::new(&buf);
         if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;

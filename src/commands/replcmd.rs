@@ -1,36 +1,53 @@
 use crate::commands::array;
 use crate::commands::incoming;
-use crate::commands::resp;
 use crate::commands::ss;
 use crate::repl::repl;
 use crate::store::db;
-use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-pub fn handler(
-    datain: &incoming::Incoming,
-    stream: &mut TcpStream,
-    db: &Arc<db::DB>,
-    replcfg: &Arc<repl::ReplicationConfig>,
-    tx_ch: &Sender<BytesMut>,
-) -> std::io::Result<()> {
-    let cmd = &datain.command;
-    if db.role_master() {
-        let response = "+OK\r\n".to_string();
-        // parse repl options
-        if let Err(e) = parse_repl_options(cmd, stream, replcfg) {
-            println!("Error creating replication node!!: {}", e);
-        }
-        return stream.write_all(response.as_bytes());
+#[derive(Debug, Clone)]
+pub struct ReplCommand<'a> {
+    cmd: &'a Vec<String>,
+}
+
+impl<'a> ReplCommand<'a> {
+    pub fn new(cmd: &'a Vec<String>) -> Self {
+        Self { cmd }
     }
-    ss::invalid(datain, stream, db, replcfg, tx_ch)
+}
+
+impl<'a> incoming::CommandHandler for ReplCommand<'a> {
+    fn handle(
+        &self,
+        stream: &mut TcpStream,
+        db: &Arc<db::DB>,
+    ) -> std::io::Result<()> {
+        if db.role_master() {
+            let response = "+OK\r\n".to_string();
+            // parse repl options
+            return stream.write_all(response.as_bytes());
+        }
+        ss::invalid(stream)
+    }
+
+    // should be done only if this is master node
+    fn repl_config(
+            &self,
+            stream: &mut TcpStream,
+            replcfg: &Arc<repl::ReplicationConfig>
+        ) -> std::io::Result<()> {
+            if let Err(e) = parse_repl_options(self.cmd, stream, replcfg) {
+                println!("Error creating replication node!!: {}", e);
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+            }
+            Ok(())
+        }
 }
 
 fn parse_repl_options(
-    cmd: &resp::DataType,
+    cmd: &Vec<String>,
     stream: &TcpStream,
     replcfg: &Arc<repl::ReplicationConfig>,
 ) -> Result<(), String> {
@@ -43,7 +60,7 @@ fn parse_repl_options(
         ));
     }
     let mut optidx: usize = 1;
-    println!("peer ddress: {:?}", peer_addr);
+    println!("peer address: {:?}", peer_addr);
     if let Some(o) = array::get_nth_arg(cmd, optidx) {
         optidx += 1;
         if o.contains("listening-port") {

@@ -1,53 +1,61 @@
 use crate::commands::array;
 use crate::commands::incoming;
-use crate::commands::resp;
 use crate::commands::ss;
 use crate::rdb::rdb;
 use crate::repl::repl;
 use crate::store::db;
-use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-pub fn handler(
-    datain: &incoming::Incoming,
-    stream: &mut TcpStream,
-    db: &Arc<db::DB>,
-    replcfg: &Arc<repl::ReplicationConfig>,
-    tx_ch: &Sender<BytesMut>,
-) -> std::io::Result<()> {
-    if !db.role_master() {
-        println!("I am no master - why should I respond to psync!!\n");
-        return ss::invalid(datain, stream, db, replcfg, tx_ch);
+#[derive(Debug, Clone)]
+pub struct PSync<'a> {
+    cmd: &'a Vec<String>,
+}
+
+impl<'a> PSync<'a> {
+    pub fn new(cmd: &'a Vec<String>) -> Self {
+        Self { cmd }
+    }
+}
+
+impl<'a> incoming::CommandHandler for PSync<'a> {
+    fn handle(
+        &self,
+        stream: &mut TcpStream,
+        db: &Arc<db::DB>,
+    ) -> std::io::Result<()> {
+        if !db.role_master() {
+            println!("I am no master - why should I respond to psync!!\n");
+            return ss::invalid(stream);
+        }
+        let database = rdb::RDB::new();
+        let mut response = vec![];
+        response
+            .extend_from_slice("+FULLRESYNC 75cd7bc10c49047e0d163660f3b90625b1af31dc 0\r\n".as_bytes());
+        if let Ok(rdb_content) = database.get() {
+            response.extend_from_slice(&rdb_content);
+        } else {
+            println!("---------- Error decoding RDB content ----------");
+        }
+        stream.write_all(&response)
     }
 
-    let cmd = &datain.command;
-    // find listening port
-    // first command
-    // parse capabilities
-    let database = rdb::RDB::new();
-    let mut response = vec![];
-    response
-        .extend_from_slice("+FULLRESYNC 75cd7bc10c49047e0d163660f3b90625b1af31dc 0\r\n".as_bytes());
-    if let Ok(rdb_content) = database.get() {
-        response.extend_from_slice(&rdb_content);
-    } else {
-        println!("---------- Error decoding RDB content ----------");
+    fn repl_config(
+        &self,
+        stream: &mut TcpStream,
+        replcfg: &Arc<repl::ReplicationConfig>
+    ) -> std::io::Result<()> {
+        if let Err(e) = parse_psync_options(self.cmd, stream, replcfg) {
+            println!("Error updating replication node sync!!: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+        }
+        Ok(())
     }
-
-    // now lets get this slave ready for syncing
-
-    if let Err(e) = parse_psync_options(cmd, stream, replcfg) {
-        println!("Error updating replication node sync!!: {}", e);
-    }
-    // mark this state as slave is insync
-    stream.write_all(&response)
 }
 
 fn parse_psync_options(
-    cmd: &resp::DataType,
+    cmd: &Vec<String>,
     stream: &mut TcpStream,
     replcfg: &Arc<repl::ReplicationConfig>,
 ) -> Result<(), String> {
@@ -61,21 +69,22 @@ fn parse_psync_options(
     }
     let mut optidx: usize = 1;
     if let Some(o) = array::get_nth_arg(cmd, optidx) {
+        println!("replconf master index: {}", o);
         optidx += 1;
         // if this is ? , means it does not know master IDX
-        //if let Some(sync_id) = array::get_nth_arg(cmd, optidx) {
-        //    println!("next option: {}", sync_id);
-        //    optidx += 1;
-        //if let Ok(syncid) = sync_id.parse::<i32>() {
-        if let Ok(syncid) = o.parse::<i64>() {
-            replcfg.update_psync_repl_id(&peer_addr_complete, syncid, stream);
-            return Ok(());
-        } else {
-            println!("failed to parse {o} into integer!");
+        if let Some(sync_id) = array::get_nth_arg(cmd, optidx) {
+            println!("next option: {}", sync_id);
+            optidx += 1;
+            if let Ok(syncid) = sync_id.parse::<i64>() {
+                // this will mark slave state ready for replication as well
+                replcfg.update_psync_repl_id(&peer_addr_complete, syncid, stream);
+                return Ok(());
+            } else {
+                println!("failed to parse {sync_id} into integer!");
+            }
         }
-        //}
     } else {
-        println!("Is this a blunder!!!");
+        println!("Is this a blunder!!! - unable to parse command: {:?}", cmd);
     }
-    Err("Error with PSYNC options".to_string())
+    Err(format!("Error with PSYNC options - command: {:?}", cmd))
 }

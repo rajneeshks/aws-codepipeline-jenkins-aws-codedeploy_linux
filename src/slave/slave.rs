@@ -58,8 +58,8 @@ impl Ping {
                 buf.set_len(len);
             }
             // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf, len);
-            if cmd.get_command().to_lowercase().contains("pong") {
+            let cmd = incoming::Incoming::new(&buf);
+            if cmd.get_command(0).to_lowercase().contains("pong") {
                 return Ok(());
             }
         }
@@ -121,8 +121,8 @@ impl ReplConf1 {
                 buf.set_len(len);
             }
             // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf, len);
-            if cmd.get_command().to_lowercase().contains("ok") {
+            let cmd = incoming::Incoming::new(&buf);
+            if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
         }
@@ -182,8 +182,8 @@ impl ReplConf2 {
                 buf.set_len(len);
             }
             // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf, len);
-            if cmd.get_command().to_lowercase().contains("ok") {
+            let cmd = incoming::Incoming::new(&buf);
+            if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
         }
@@ -244,9 +244,9 @@ impl PSync {
                 println!("PSync Assuming success - need to parse this input properly!!");
                 return Ok(());
             }
-            let cmd = incoming::Incoming::new(&buf, len);
+            let cmd = incoming::Incoming::new(&buf);
             println!("PSYNC command response received: {}", cmd);
-            if cmd.get_command().to_lowercase().contains("fullresync") {
+            if cmd.get_command(0).to_lowercase().contains("fullresync") {
                 return Ok(());
             }
         }

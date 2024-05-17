@@ -5,51 +5,35 @@ use crate::commands::info;
 use crate::commands::ping;
 use crate::commands::psync;
 use crate::commands::replcmd;
-use crate::commands::resp;
 use crate::commands::ss;
-use crate::repl::repl;
-use crate::store::db;
-use bytes::BytesMut;
-use std::net::TcpStream;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
 
-pub fn get_nth_arg(cmd: &resp::DataType, id: usize) -> Option<&String> {
-    if let resp::DataType::Array(values) = cmd {
-        if values.len() <= id {
-            return None;
-        }
-        return Some(&values[id]);
+pub fn get_nth_arg(values: &Vec<String>, id: usize) -> Option<&String> {
+    if values.len() <= id {
+        return None;
     }
-    None
+    return Some(&values[id]);
 }
 
 pub fn array_type_handler(
     cmd: &Vec<String>,
-) -> fn(
-    &incoming::Incoming,
-    &mut TcpStream,
-    &Arc<db::DB>,
-    &Arc<repl::ReplicationConfig>,
-    &Sender<BytesMut>,
-) -> std::io::Result<()> {
+) -> Box<dyn incoming::CommandHandler + '_> {
     if cmd[0].contains("ok") {
-        return ss::dropit;
-    } else if cmd[0].contains("echo") {
-        return echo::handler;
-    } else if cmd[0].contains("ping") {
-        return ping::handler;
-    } else if cmd[0].contains("set") {
-        return getset::set_handler;
-    } else if cmd[0].contains("get") {
-        return getset::get_handler;
+        return Box::new(ss::OkResponse::new());
     } else if cmd[0].contains("info") {
-        return info::handler;
+        return Box::new(info::Info::new(cmd));
+    } else if cmd[0].contains("echo") {
+        return Box::new(echo::Echo::new(cmd));
+    } else if cmd[0].contains("ping") {
+        return Box::new(ping::Ping::new());
+    } else if cmd[0].contains("set") {
+        return Box::new(getset::SetCommand::new(cmd));
+    } else if cmd[0].contains("get") {
+        return Box::new(getset::GetCommand::new(cmd));
     } else if cmd[0].contains("replconf") {
-        return replcmd::handler;
+        return Box::new(replcmd::ReplCommand::new(cmd));
     } else if cmd[0].contains("psync") {
-        return psync::handler;
+        return Box::new(psync::PSync::new(cmd));
     }
 
-    ss::invalid
+    Box::new(ss::InvalidCommand::new())
 }
