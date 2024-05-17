@@ -63,7 +63,7 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         }
         Ok(())
     }
-}:we
+}
 
 fn parse_repl_options(
     cmd: &Vec<String>,
