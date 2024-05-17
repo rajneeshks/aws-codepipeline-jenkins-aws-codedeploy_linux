@@ -122,8 +122,6 @@ impl ReplConf1 {
             }
             // verify that command contains +PONG
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("replconf1 response: {}", cmd.get_command(0));
-            println!("raplconf1 raw buffer of len: {len} : {:?}", buf);
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -183,11 +181,8 @@ impl ReplConf2 {
             unsafe {
                 buf.set_len(len);
             }
-            println!("replconf2 raw buffer of length: {len}: {:?}", buf);
             // verify that command contains +OK
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("replconf2 incoming command parsing: {}", cmd);
-            println!("replconf2 response: {}", cmd.get_command(0));
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -251,7 +246,6 @@ impl PSync {
                 return Ok(());
             }
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("PSYNC command response received: {}", cmd.get_command(0));
             if cmd.get_command(0).to_lowercase().contains("fullresync") {
                 return Ok(());
             }
