@@ -30,7 +30,6 @@ fn handle_connection(
     db: Arc<store::db::DB>,
     replcfg: Arc<repl::repl::ReplicationConfig>,
     repl_ch_tx: Sender<BytesMut>,
-    master_slave_con: bool,
 ) {
     let mut stream = stream;
     let mut buf = BytesMut::with_capacity(1500);
@@ -47,8 +46,8 @@ fn handle_connection(
         unsafe {
             buf.set_len(len);
         }
-        let cmd = commands::incoming::Incoming::new(&buf, master_slave_con);
-        if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx) {
+        let cmd = commands::incoming::Incoming::new(&buf, false);
+        if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx, &None) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;
         }
@@ -108,11 +107,11 @@ fn main() {
         let _ = thread::spawn(move || store::db::key_expiry_thread(dbc, EXPIRY_LOOP_TIME));
     }
 
-    let mut slave: Option<slave::slave::Config> = None;
     let (repl_tx_ch, repl_rx_ch) = mpsc::channel();
     let replcfg = Arc::new(repl::repl::ReplicationConfig::new());
 
-    // start replication thread
+    // start replication thread - only needed on master
+    // but slave can get promoted to a master
     if true {
         let dbc = Arc::clone(&db);
         let replcfg_cp = Arc::clone(&replcfg);
@@ -120,24 +119,13 @@ fn main() {
     }
 
     if !role_master {
-        slave = Some(slave::slave::Config::new(
-            master_ip_addr,
-            master_port,
-            args.port,
-        ));
-        if let Some(mut slave_cfg) = slave {
-            slave_cfg.initiate();
-            // new thread to handle further communication
-            if let Some(stream) = slave_cfg.stream.take() {
-                let dbc = Arc::clone(&db);
-                let tx_ch_clone = repl_tx_ch.clone();
-                let replcfg_cp = Arc::clone(&replcfg);
-                let _ =
-                    thread::spawn(move || handle_connection(stream, dbc, replcfg_cp, tx_ch_clone, true));
-            } else {
-                println!("slave connection did not survive!!!");
-            }
-        }
+        // new thread for master-slave communications
+        let dbc = Arc::clone(&db);
+        let tx_ch_clone = repl_tx_ch.clone();
+        let replcfg_cp = Arc::clone(&replcfg);
+        let _ =
+            thread::spawn(move || slave::slave::slave_thread(dbc, replcfg_cp,
+                    tx_ch_clone, master_ip_addr, master_port, args.port));
     }
 
     for stream in listener.incoming() {
@@ -147,7 +135,7 @@ fn main() {
                 let tx_ch_clone = repl_tx_ch.clone();
                 let replcfg_cp = Arc::clone(&replcfg);
                 let _ =
-                    thread::spawn(move || handle_connection(_stream, dbc, replcfg_cp, tx_ch_clone, false));
+                    thread::spawn(move || handle_connection(_stream, dbc, replcfg_cp, tx_ch_clone));
             }
             Err(e) => {
                 println!("error: {}", e);

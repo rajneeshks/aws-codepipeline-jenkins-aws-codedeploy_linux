@@ -1,5 +1,6 @@
 use crate::commands::array;
 use crate::commands::incoming;
+use crate::slave::slave;
 use crate::repl::repl;
 use crate::store::db;
 use std::io::Write;
@@ -22,22 +23,13 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
     fn handle(
         &self,
         stream: &mut TcpStream,
-        db: &Arc<db::DB>,
+        _db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        let mut response = String::new();
-        if true || self.replication_conn {
-            if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
-                let _ = std::fmt::write(&mut response,
-                    format_args!("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n"));
-            } else { // slave is looking for a response
-                let _ = std::fmt::write(&mut response,
-                    format_args!("+OK\r\n"));
-            }
-        } else {
-            let _ = std::fmt::write(&mut response,
-                format_args!("+OK\r\n"));
+
+        if self.replication_conn {
+            return Ok(());
         }
-        return stream.write_all(response.as_bytes());
+        stream.write_all(b"+OK\r\n")
     }
 
     // should be done only if this is master node
@@ -55,7 +47,23 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
             }
             Ok(())
         }
-}
+
+    fn track_offset(&self, slavecfg: &Option<slave::Config>, length: usize, stream: &mut TcpStream) -> std::io::Result<()>{
+        let mut offset = 0;
+        if let Some(cfg) = slavecfg.as_ref() {
+            offset = cfg.get_offset();
+            cfg.track_offset(length as u64);
+        }
+        if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
+            // lets send it out!
+            let offset_str = offset.to_string();
+            let response = format!("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n${}\r\n{}\r\n",
+                offset_str.len(), offset);
+            return stream.write_all(response.as_bytes());
+        }
+        Ok(())
+    }
+}:we
 
 fn parse_repl_options(
     cmd: &Vec<String>,
@@ -85,6 +93,8 @@ fn parse_repl_options(
             }
         } else if o.contains("capa") {
             println!("its second replconf - we should update slave capabilities");
+            return Ok(());
+        } else if o.contains("getack") || o.contains("GETACK") {
             return Ok(());
         }
     }

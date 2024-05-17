@@ -94,8 +94,8 @@ impl ReplicationCommands {
 }
 
 pub struct ReplicationConfig {
-    pub replcfg: RwLock<ReplicationConfigInternal>,
-    pub commands: RwLock<ReplicationCommands>,
+    replcfg: RwLock<ReplicationConfigInternal>,
+    commands: RwLock<ReplicationCommands>,
 }
 
 impl ReplicationConfig {
@@ -133,7 +133,9 @@ impl ReplicationConfig {
         Ok(())
     }
 
-    pub fn add_capabilities(&mut self, peer_addr: &str) {}
+    pub fn add_capabilities(&mut self, _peer_addr: &str) {
+        todo!()
+    }
 
     // when PSync command is invoked, we only know the peer address as part
     // of the command

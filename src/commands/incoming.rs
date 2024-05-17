@@ -1,8 +1,10 @@
 // incoming command formatting
 use crate::commands::array;
+use crate::commands::bulk;
 use crate::commands::resp;
 use crate::commands::ss;
 use crate::repl::repl;
+use crate::slave::slave;
 use crate::store::db;
 use bytes::BytesMut;
 use std::io::Write;
@@ -36,6 +38,14 @@ pub trait CommandHandler {
     ) -> std::io::Result<()> {
         Ok(())
     }
+
+    // for tracking slave offset
+    fn track_offset(&self, slavecfg: &Option<slave::Config>, length: usize, _stream: &mut TcpStream) -> std::io::Result<()>{
+        if let Some(cfg) = slavecfg.as_ref() {
+            cfg.track_offset(length as u64);
+        }
+        Ok(())
+    }
 }
 
 pub struct Incoming<'a> {
@@ -63,23 +73,34 @@ impl<'a, 'b> Incoming<'b> {
         db: &Arc<db::DB>,
         replcfg: &Arc<repl::ReplicationConfig>,
         repl_ch: &Sender<BytesMut>,
+        slavecfg: &Option<slave::Config>,
     ) -> std::io::Result<()> {
         for command in &self.commands {
-            println!("processing command: {}", command);
             let mut handler = None;
             match command {
-                resp::DataType::SimpleString(ref cmd) => { // give the ownership away?
+                resp::DataType::SimpleString(ref cmd) => {
                     handler = Some(ss::simple_string_command_handler(cmd, self.replication_conn));
                 },
                 resp::DataType::Array(ref cmd) => {
                     handler = Some(array::array_type_handler(cmd, self.replication_conn));
                 },
-                _ => stream.write_all(format!("-{}\r\n", command).as_bytes())?,
+                resp::DataType::BulkString(ref cmd) => {
+                    handler = Some(bulk::bulk_string_type_handler(cmd, self.replication_conn));
+                },
+                resp::DataType::SimpleError(ref _cmd) => { // received error message, may be log it for now
+                    println!("Received Simple error command: {}", command);
+                },
+                _ => if !self.replication_conn {
+                    stream.write_all(format!("-{}\r\n", command).as_bytes())?;
+                } else {
+                    println!("reported invalid command on replicastion connection!!");
+                }
             }
             if let Some(f) = handler {
                 let result1 = f.handle(stream, db);
                 let result2 = f.replicate(self.buf, repl_ch);
                 let result3 = f.repl_config(stream, replcfg);
+                let result4 = f.track_offset(slavecfg, self.buf.len(), stream);
 
                 if result1.is_err() { 
                     println!("Error processing command for {}", command);
@@ -91,6 +112,10 @@ impl<'a, 'b> Incoming<'b> {
                 }
                 if result3.is_err() {
                     println!("Error updating repl configuration for {}", command);
+                    //return result3;
+                }
+                if result4.is_err() {
+                    println!("Error updating slave offset for {}", command);
                     //return result3;
                 }
             }

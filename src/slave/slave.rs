@@ -1,14 +1,20 @@
+use crate::commands;
 use crate::commands::incoming;
+use crate::store;
+use crate::repl;
 use bytes::BytesMut;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
+use std::sync::RwLock;
 use std::thread;
 use std::time;
+use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 const MAX_RETRIES: u8 = 5;
 
 trait State {
-    fn initiate(self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State>;
+    fn initiate(self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State>;
 }
 
 #[derive(Debug, Clone)]
@@ -21,7 +27,7 @@ impl Init {
 }
 
 impl State for Init {
-    fn initiate(self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State> {
         let new_state = Box::new(Ping::new());
         new_state.clone().initiate(stream, config);
         new_state
@@ -59,6 +65,7 @@ impl Ping {
             }
             // verify that command contains +PONG
             let cmd = incoming::Incoming::new(&buf, true);
+            println!("Ping - received command response: {}", cmd);
             if cmd.get_command(0).to_lowercase().contains("pong") {
                 return Ok(());
             }
@@ -68,7 +75,7 @@ impl Ping {
 }
 
 impl State for Ping {
-    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State> {
         while self.retries < MAX_RETRIES {
             self.retries += 1;
             if let Ok(_resp) = self.initiate_internal(stream) {
@@ -94,7 +101,7 @@ impl ReplConf1 {
         Self { retries: 0 }
     }
 
-    fn initiate_internal(&mut self, stream: &mut TcpStream, config: &Config) -> Result<(), String> {
+    fn initiate_internal(&mut self, stream: &mut TcpStream, config: &MasterNodeConfig) -> Result<(), String> {
         // send SYNC command
         //*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n
         let mut command = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n".to_string();
@@ -122,6 +129,8 @@ impl ReplConf1 {
             }
             // verify that command contains +PONG
             let cmd = incoming::Incoming::new(&buf, true);
+            println!("REPLCONF1 - received command: {}", cmd);
+
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -131,7 +140,7 @@ impl ReplConf1 {
 }
 
 impl State for ReplConf1 {
-    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State> {
         while self.retries < MAX_RETRIES {
             self.retries += 1;
             if let Ok(_resp) = self.initiate_internal(stream, config) {
@@ -160,7 +169,7 @@ impl ReplConf2 {
     fn initiate_internal(
         &mut self,
         stream: &mut TcpStream,
-        _config: &Config,
+        _config: &MasterNodeConfig,
     ) -> Result<(), String> {
         // send SYNC command
         //*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n
@@ -183,6 +192,7 @@ impl ReplConf2 {
             }
             // verify that command contains +OK
             let cmd = incoming::Incoming::new(&buf, true);
+            println!("REPLCONF2 - received command: {}", cmd);
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -192,7 +202,7 @@ impl ReplConf2 {
 }
 
 impl State for ReplConf2 {
-    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State> {
         while self.retries < MAX_RETRIES {
             self.retries += 1;
             if let Ok(_resp) = self.initiate_internal(stream, config) {
@@ -221,18 +231,19 @@ impl PSync {
     fn initiate_internal(
         &mut self,
         stream: &mut TcpStream,
-        _config: &Config,
+        _config: &MasterNodeConfig,
     ) -> Result<(), String> {
         let command = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
         let resp = stream.write(command.as_bytes());
         if resp.is_err() {
             return Err(format!("Error sending PSYNC command"));
         }
+        // we will handle these commands as part of regular processing
+/*
+        let mut cmds_processed = 0;
         let mut buf = BytesMut::with_capacity(1500);
-        let mut total_len_received = 0;
-
         // hack - may be sent over multiple commands - how to do we know its the end?
-        while total_len_received < 100 {
+        while cmds_processed < 2 {
             unsafe {
                 buf.set_len(1500);
             }
@@ -245,25 +256,19 @@ impl PSync {
                     buf.set_len(len);
                 }
                 println!("PSync2 Raw response of {len} bytes: {:?}", buf);
-                total_len_received += len;
-            }
-        }
-        {
-            if total_len_received > 10 {
-                println!("PSync Assuming success - need to parse this input properly!!");
-                return Ok(());
             }
             let cmd = incoming::Incoming::new(&buf, true);
-            if cmd.get_command(0).to_lowercase().contains("fullresync") {
-                return Ok(());
-            }
+            cmds_processed += cmd.commands.len();
+            //cmd.handle(stream, None, None, None);
         }
         Err("Unable to move to next state (PSYNC) - may be retrying!!".to_string())
+*/
+        Ok(())
     }
 }
 
 impl State for PSync {
-    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &Config) -> Box<dyn State> {
+    fn initiate(mut self: Box<Self>, stream: &mut TcpStream, config: &MasterNodeConfig) -> Box<dyn State> {
         while self.retries < MAX_RETRIES {
             self.retries += 1;
             if let Ok(_resp) = self.initiate_internal(stream, config) {
@@ -287,52 +292,63 @@ impl Complete {
 }
 
 impl State for Complete {
-    fn initiate(self: Box<Self>, _stream: &mut TcpStream, _config: &Config) -> Box<dyn State> {
+    fn initiate(self: Box<Self>, _stream: &mut TcpStream, _config: &MasterNodeConfig) -> Box<dyn State> {
         self
     }
 }
 
-pub struct Config {
+#[derive(Debug, Clone)]
+struct MasterNodeConfig {
     master_ip_addr: String,
     master_port: u16,
     my_port: u16,
-    pub stream: Option<TcpStream>,
+}
+
+impl MasterNodeConfig {
+    fn new(master_ip_addr: String, master_port: u16, my_port: u16) -> Self{
+        Self {
+            master_ip_addr,
+            master_port,
+            my_port,
+        }
+    }
+}
+
+pub struct Config {
+    master_node: MasterNodeConfig,
+    stream: Option<TcpStream>,
     state: Option<Box<dyn State>>,
+    in_sync: RwLock<bool>,  // if replica is in sync
+    offset: RwLock<u64>,
 }
 
 impl Config {
     pub fn new(master_ip_addr: String, master_port: u16, my_port: u16) -> Self {
         Self {
-            master_ip_addr,
-            master_port,
-            my_port,
+            master_node: MasterNodeConfig::new(master_ip_addr, master_port, my_port),
             stream: None,
             state: Some(Box::new(Init::new())),
+            in_sync: RwLock::new(false),
+            offset: RwLock::new(u64::MIN),
         }
     }
 
     pub fn initiate(&mut self) {
         // establish TCP connection with the master
         // save the socket stream
-        let config = Config {
-            master_ip_addr: self.master_ip_addr.clone(),
-            master_port: self.master_port,
-            my_port: self.my_port,
-            stream: None,
-            state: None,
-        };
+
         if self.stream.is_none() {
             let stream =
-                TcpStream::connect(format!("{}:{}", self.master_ip_addr, self.master_port));
+                TcpStream::connect(format!("{}:{}", self.master_node.master_ip_addr, self.master_node.master_port));
             self.stream = stream.ok();
         }
         if let Some(mut stream) = self.stream.as_mut() {
             println!(
                 "Connected to master at {}:{}",
-                self.master_ip_addr, self.master_port
+                self.master_node.master_ip_addr, self.master_node.master_port
             );
             if let Some(s) = self.state.take() {
-                self.state = Some(s.initiate(&mut stream, &config));
+                self.state = Some(s.initiate(&mut stream, &self.master_node));
             }
         } else {
             println!("Slave is not connected to the master...");
@@ -345,4 +361,70 @@ impl Config {
             let _ = conn.shutdown(Shutdown::Both);
         }
     }
+
+    pub fn synced_in(&self) {
+        *self.in_sync.write().unwrap() = true;
+    }
+
+    pub fn track_offset(&self, len: u64) {
+        let synced = *self.in_sync.read().unwrap();
+        if synced {
+            *self.offset.write().unwrap() += len;
+        }
+    }
+
+    pub fn get_offset(&self) -> u64 {
+        *self.offset.read().unwrap()
+    }
+}
+
+
+pub fn slave_thread(
+    db: Arc<store::db::DB>,
+    replcfg: Arc<repl::repl::ReplicationConfig>,
+    repl_ch_tx: Sender<BytesMut>,
+    master_ip_addr: String,
+    master_port: u16,
+    my_port: u16
+) {
+    let mut slave = Config::new(
+        master_ip_addr,
+        master_port,
+        my_port,
+    );
+    slave.initiate(); // initiate the state machine.
+
+    let mut buf = BytesMut::with_capacity(1500);
+    unsafe {
+        buf.set_len(1500);
+    }
+
+    // take out the stream from inside the config struct to be safe
+    let mut stream = slave.stream.take().unwrap();
+
+    let slavecfg = Some(slave);
+    // read data from socket
+    loop {
+        if let Ok(len) = stream.read(&mut buf) {
+            if len <= 0 {
+                println!("read {len} bytes and hence existing...");
+                break;
+            }
+            unsafe {
+                buf.set_len(len);
+            }
+            let cmd = incoming::Incoming::new(&buf, true);
+            if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx, &slavecfg) {
+                println!("error handling incoming command on master-slave channel: {}, Error: {}", cmd, e);
+                break;
+            }
+            unsafe {
+                buf.set_len(1500);
+            }
+        }
+    }
+
+    println!("Done with this socket - closing....");
+    let _ = stream.shutdown(Shutdown::Both);
+
 }

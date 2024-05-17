@@ -1,12 +1,14 @@
 use crate::commands::incoming;
 use crate::commands::ping;
 use crate::commands::resp;
+use crate::commands::fullresync;
 use crate::store::db;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
 pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
+    println!("---------- ************* sending invalid command ***********-----------");
     let d = resp::DataType::Invalid("invalid command\r\n".to_string());
     stream.write_all(format!("{}", d).as_bytes())
 }
@@ -59,6 +61,8 @@ pub fn simple_string_command_handler(
         return Box::new(ping::Ping::new(replication_conn));
     } else if cmd.contains("ok") {
         return Box::new(OkResponse::new(replication_conn));
+    } else if cmd.contains("fullresync") {
+        return Box::new(fullresync::FullResync::new(replication_conn));
     }
 
     Box::new(InvalidCommand::new(replication_conn))

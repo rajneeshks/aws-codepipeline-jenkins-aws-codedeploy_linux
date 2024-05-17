@@ -1,6 +1,5 @@
 use crate::commands::array;
 use crate::commands::incoming;
-use crate::commands::ss;
 use crate::rdb::rdb;
 use crate::repl::repl;
 use crate::store::db;

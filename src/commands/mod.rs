@@ -1,10 +1,13 @@
 pub mod array;
+pub mod bulk;
 pub mod echo;
+pub mod fullresync;
 pub mod getset;
 pub mod incoming;
 pub mod info;
 pub mod ping;
 pub mod psync;
+pub mod rdbfile;
 pub mod replcmd;
 pub mod resp;
 pub mod ss;
