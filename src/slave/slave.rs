@@ -229,7 +229,7 @@ impl PSync {
             return Err(format!("Error sending PSYNC command"));
         }
         let mut buf = BytesMut::with_capacity(1500);
-        let total_len_received = 0;
+        let mut total_len_received = 0;
 
         // hack - may be sent over multiple commands - how to do we know its the end?
         while total_len_received < 100 {
@@ -245,6 +245,7 @@ impl PSync {
                     buf.set_len(len);
                 }
                 println!("PSync2 Raw response of {len} bytes: {:?}", buf);
+                total_len_received += len;
             }
         }
         {
