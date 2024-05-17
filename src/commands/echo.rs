@@ -6,12 +6,13 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Echo<'a> {
-    cmd: &'a Vec<String>
+    cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> Echo<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self { cmd }
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self { cmd, replication_conn }
     }
 }
 
@@ -22,6 +23,7 @@ impl<'a> incoming::CommandHandler for Echo<'a> {
         _db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
         // only be called when data type is appropriate
+        if self.replication_conn { return Ok(()); }
         let mut response = String::new();
         if self.cmd.len() >= 2 {
             if self.cmd[0] == "echo" {

@@ -3,6 +3,7 @@ use crate::commands::incoming;
 use crate::commands::ss;
 use crate::store::db;
 use bytes::BytesMut;
+use clap::error::ErrorKind;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::Sender;
@@ -23,11 +24,12 @@ impl SetOptions {
 #[derive(Debug, Clone)]
 pub struct SetCommand <'a>{
     cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> SetCommand<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self { cmd }
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self { cmd, replication_conn }
     }
 }
 
@@ -64,8 +66,15 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
             };
             argidx += 1;
         }
+        let db_result = db.add(key.clone(), val.clone(), &options);
+        if db_result.is_err() {
+            println!("Error writing into the DB");
+            return Err(std::io::Error::new(std::io::ErrorKind::Other,
+                format!("failed set command: {:?}", self.cmd)));
+        }
+        if self.replication_conn { return Ok(()); }
 
-        if let Ok(_o) = db.add(key.clone(), val.clone(), &options) {
+        if let Ok(_o) =  db_result {
             // replicate it now
             let _ = std::fmt::write(&mut response, format_args!("+OK\r\n"));
         } else {
@@ -79,6 +88,7 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
             buf: &BytesMut,
             tx_ch: &Sender<BytesMut>
         ) -> std::io::Result<()> {
+        if self.replication_conn { return Ok(()); }
         match tx_ch.send(buf.clone()) {
             Ok(_) => Ok(()),
             Err(e) => 
@@ -92,11 +102,12 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
 #[derive(Debug, Clone)]
 pub struct GetCommand<'a> {
     cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> GetCommand<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self { cmd }
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self { cmd, replication_conn }
     }
 }
 
@@ -106,6 +117,8 @@ impl<'a> incoming::CommandHandler for GetCommand<'a> {
         stream: &mut TcpStream,
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
+        if self.replication_conn { return Ok(()); }
+        
         let cmd = &self.cmd;
         let mut response = String::new();
         if let Some(key) = array::get_nth_arg(cmd, 1) {

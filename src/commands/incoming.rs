@@ -41,10 +41,11 @@ pub trait CommandHandler {
 pub struct Incoming<'a> {
     pub buf: &'a BytesMut,
     pub commands: Vec<resp::DataType>,
+    replication_conn: bool,
 }
 
 impl<'a, 'b> Incoming<'b> {
-    pub fn new(buf: &'a BytesMut) -> Incoming<'b>
+    pub fn new(buf: &'a BytesMut, replication_conn: bool) -> Incoming<'b>
     where
         'a: 'b,
     {
@@ -52,6 +53,7 @@ impl<'a, 'b> Incoming<'b> {
         Self {
             buf,
             commands,
+            replication_conn,
         }
     }
 
@@ -67,10 +69,10 @@ impl<'a, 'b> Incoming<'b> {
             let mut handler = None;
             match command {
                 resp::DataType::SimpleString(ref cmd) => { // give the ownership away?
-                    handler = Some(ss::simple_string_command_handler(cmd));
+                    handler = Some(ss::simple_string_command_handler(cmd, self.replication_conn));
                 },
                 resp::DataType::Array(ref cmd) => {
-                    handler = Some(array::array_type_handler(cmd));
+                    handler = Some(array::array_type_handler(cmd, self.replication_conn));
                 },
                 _ => stream.write_all(format!("-{}\r\n", command).as_bytes())?,
             }
@@ -103,6 +105,7 @@ impl<'a, 'b> Incoming<'b> {
         }
         match self.commands[id] {
             resp::DataType::SimpleString(ref cmd) => cmd.clone(),
+            resp::DataType::Array(ref cmd) => cmd[0].clone(),
             _ => return "not implemented".to_string(),
         }
     }

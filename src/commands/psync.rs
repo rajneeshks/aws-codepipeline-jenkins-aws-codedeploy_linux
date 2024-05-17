@@ -11,11 +11,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct PSync<'a> {
     cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> PSync<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self { cmd }
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self { cmd, replication_conn }
     }
 }
 
@@ -25,10 +26,6 @@ impl<'a> incoming::CommandHandler for PSync<'a> {
         stream: &mut TcpStream,
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        if !db.role_master() {
-            println!("I am no master - why should I respond to psync!!\n");
-            return ss::invalid(stream);
-        }
         let database = rdb::RDB::new();
         let mut response = vec![];
         response

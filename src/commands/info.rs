@@ -7,12 +7,13 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Info<'a> {
-    cmd: &'a Vec<String>
+    cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> Info<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self {cmd}
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self {cmd, replication_conn}
     }
 }
 
@@ -22,6 +23,8 @@ impl<'a> incoming::CommandHandler for Info<'a> {
         stream: &mut TcpStream,
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
+        if self.replication_conn { return Ok(()); }
+        
         // only be called when data type is appropriate
         let mut response = String::new();
         let mut replication = false;

@@ -1,6 +1,5 @@
 use crate::commands::array;
 use crate::commands::incoming;
-use crate::commands::ss;
 use crate::repl::repl;
 use crate::store::db;
 use std::io::Write;
@@ -10,11 +9,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct ReplCommand<'a> {
     cmd: &'a Vec<String>,
+    replication_conn: bool,
 }
 
 impl<'a> ReplCommand<'a> {
-    pub fn new(cmd: &'a Vec<String>) -> Self {
-        Self { cmd }
+    pub fn new(cmd: &'a Vec<String>, replication_conn: bool) -> Self {
+        Self { cmd, replication_conn }
     }
 }
 
@@ -24,12 +24,20 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         stream: &mut TcpStream,
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        if db.role_master() {
-            let response = "+OK\r\n".to_string();
-            // parse repl options
-            return stream.write_all(response.as_bytes());
+        let mut response = String::new();
+        if self.replication_conn {
+            if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
+                let _ = std::fmt::write(&mut response,
+                    format_args!("REPLCONF ACK 0\r\n"));
+            } else { // slave is looking for a response
+                let _ = std::fmt::write(&mut response,
+                    format_args!("+OK\r\n"));
+            }
+        } else {
+            let _ = std::fmt::write(&mut response,
+                format_args!("+OK\r\n"));
         }
-        ss::invalid(stream)
+        return stream.write_all(response.as_bytes());
     }
 
     // should be done only if this is master node
@@ -38,6 +46,9 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
             stream: &mut TcpStream,
             replcfg: &Arc<repl::ReplicationConfig>
         ) -> std::io::Result<()> {
+            // we should receive these commands only over replication connection
+            //if !self.replication_conn { return ss::invalid(stream); }
+
             if let Err(e) = parse_repl_options(self.cmd, stream, replcfg) {
                 println!("Error creating replication node!!: {}", e);
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, e));

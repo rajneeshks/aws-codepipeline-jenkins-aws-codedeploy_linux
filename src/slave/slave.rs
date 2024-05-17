@@ -58,7 +58,7 @@ impl Ping {
                 buf.set_len(len);
             }
             // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf);
+            let cmd = incoming::Incoming::new(&buf, true);
             if cmd.get_command(0).to_lowercase().contains("pong") {
                 return Ok(());
             }
@@ -121,7 +121,9 @@ impl ReplConf1 {
                 buf.set_len(len);
             }
             // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf);
+            let cmd = incoming::Incoming::new(&buf, true);
+            println!("replconf1 response: {}", cmd.get_command(0));
+            println!("raplconf1 raw buffer of len: {len} : {:?}", buf);
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -181,8 +183,11 @@ impl ReplConf2 {
             unsafe {
                 buf.set_len(len);
             }
-            // verify that command contains +PONG
-            let cmd = incoming::Incoming::new(&buf);
+            println!("replconf2 raw buffer of length: {len}: {:?}", buf);
+            // verify that command contains +OK
+            let cmd = incoming::Incoming::new(&buf, true);
+            println!("replconf2 incoming command parsing: {}", cmd);
+            println!("replconf2 response: {}", cmd.get_command(0));
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -233,6 +238,7 @@ impl PSync {
             buf.set_len(1500);
         }
         if let Ok(len) = stream.read(&mut buf) {
+            println!("received response of {len} length for PSync2 command");
             if len <= 0 {
                 // sleep and retry
                 return Err("Did not receive appropriate command response (PSYNC)".to_string());
@@ -244,8 +250,8 @@ impl PSync {
                 println!("PSync Assuming success - need to parse this input properly!!");
                 return Ok(());
             }
-            let cmd = incoming::Incoming::new(&buf);
-            println!("PSYNC command response received: {}", cmd);
+            let cmd = incoming::Incoming::new(&buf, true);
+            println!("PSYNC command response received: {}", cmd.get_command(0));
             if cmd.get_command(0).to_lowercase().contains("fullresync") {
                 return Ok(());
             }

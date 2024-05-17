@@ -30,6 +30,7 @@ fn handle_connection(
     db: Arc<store::db::DB>,
     replcfg: Arc<repl::repl::ReplicationConfig>,
     repl_ch_tx: Sender<BytesMut>,
+    master_slave_con: bool,
 ) {
     let mut stream = stream;
     let mut buf = BytesMut::with_capacity(1500);
@@ -46,7 +47,7 @@ fn handle_connection(
         unsafe {
             buf.set_len(len);
         }
-        let cmd = commands::incoming::Incoming::new(&buf);
+        let cmd = commands::incoming::Incoming::new(&buf, master_slave_con);
         if let Err(e) = cmd.handle(&mut stream, &db, &replcfg, &repl_ch_tx) {
             println!("error handling incoming command: {}, Error: {}", cmd, e);
             break;
@@ -132,7 +133,7 @@ fn main() {
                 let tx_ch_clone = repl_tx_ch.clone();
                 let replcfg_cp = Arc::clone(&replcfg);
                 let _ =
-                    thread::spawn(move || handle_connection(stream, dbc, replcfg_cp, tx_ch_clone));
+                    thread::spawn(move || handle_connection(stream, dbc, replcfg_cp, tx_ch_clone, true));
             } else {
                 println!("slave connection did not survive!!!");
             }
@@ -146,7 +147,7 @@ fn main() {
                 let tx_ch_clone = repl_tx_ch.clone();
                 let replcfg_cp = Arc::clone(&replcfg);
                 let _ =
-                    thread::spawn(move || handle_connection(_stream, dbc, replcfg_cp, tx_ch_clone));
+                    thread::spawn(move || handle_connection(_stream, dbc, replcfg_cp, tx_ch_clone, false));
             }
             Err(e) => {
                 println!("error: {}", e);

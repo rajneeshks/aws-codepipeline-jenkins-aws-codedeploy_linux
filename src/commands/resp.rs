@@ -5,7 +5,6 @@ const SIMPLE_STRING_MARKER: char = '+';
 //const INTEGER_MARKER: char = ':';
 //const SIMPLE_ERROR_MARKER: char = '-';
 const BULK_STRING_MARKER: char = '$';
-const ARG_SEPARATOR: &str = "\r\n";
 
 #[derive(Debug)]
 pub enum DataType {
@@ -162,6 +161,7 @@ impl std::fmt::Display for DataType {
             DataType::Integers(val) => write!(f, "Integer: {}", val),
             DataType::BulkString(s) => write!(f, "Bulk String: {:?}", s),
             DataType::Array(s) => write!(f, "Array: {:?}", s),
+            DataType::Invalid(s) => write!(f, "invalid: {:?}", s),
             _ => write!(f, "{}", "-Unsupported value or command\r\n"),
         }
     }

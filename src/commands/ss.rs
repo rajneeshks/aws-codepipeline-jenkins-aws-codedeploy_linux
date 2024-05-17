@@ -1,12 +1,9 @@
 use crate::commands::incoming;
 use crate::commands::ping;
 use crate::commands::resp;
-use crate::repl::repl;
 use crate::store::db;
-use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
@@ -14,10 +11,12 @@ pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
     stream.write_all(format!("{}", d).as_bytes())
 }
 
-pub struct InvalidCommand {}
+pub struct InvalidCommand {
+    replication_conn: bool,
+}
 impl InvalidCommand {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(replication_conn: bool) -> Self {
+        Self {replication_conn}
     }
 }
 
@@ -31,10 +30,12 @@ impl incoming::CommandHandler for InvalidCommand {
     }
 }
 
-pub struct OkResponse {}
+pub struct OkResponse {
+    replication_conn: bool,
+}
 impl OkResponse {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(replication_conn: bool) -> Self {
+        Self {replication_conn}
     }
 }
 
@@ -44,20 +45,21 @@ impl incoming::CommandHandler for OkResponse {
         _stream: &mut TcpStream,
         _store: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        println!("dropping it --- its slave connection likely");
+        println!("dropping it --- is it on replication connection: {}", self.replication_conn);
         Ok(())
     }
 }
 
 pub fn simple_string_command_handler(
     cmd: &String,
+    replication_conn: bool,
 ) -> Box<dyn incoming::CommandHandler> 
 {
     if cmd.contains("ping") {
-        return Box::new(ping::Ping::new());
+        return Box::new(ping::Ping::new(replication_conn));
     } else if cmd.contains("ok") {
-        return Box::new(OkResponse::new());
+        return Box::new(OkResponse::new(replication_conn));
     }
 
-    Box::new(InvalidCommand::new())
+    Box::new(InvalidCommand::new(replication_conn))
 }
