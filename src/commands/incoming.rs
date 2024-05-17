@@ -39,11 +39,9 @@ pub trait CommandHandler {
         Ok(())
     }
 
-    // for tracking slave offset
-    fn track_offset(&self, slavecfg: &Option<slave::Config>, length: usize, _stream: &mut TcpStream) -> std::io::Result<()>{
-        if let Some(cfg) = slavecfg.as_ref() {
-            cfg.track_offset(length as u64);
-        }
+    // for tracking slave offset - per received buffer, its done in main thread
+    // this is for any further processing or specific response
+    fn track_offset(&self, _slavecfg: &Option<slave::Config>, _stream: &mut TcpStream) -> std::io::Result<()>{
         Ok(())
     }
 }
@@ -100,7 +98,7 @@ impl<'a, 'b> Incoming<'b> {
                 let result1 = f.handle(stream, db);
                 let result2 = f.replicate(self.buf, repl_ch);
                 let result3 = f.repl_config(stream, replcfg);
-                let result4 = f.track_offset(slavecfg, self.buf.len(), stream);
+                let result4 = f.track_offset(slavecfg, stream);
 
                 if result1.is_err() { 
                     println!("Error processing command for {}", command);

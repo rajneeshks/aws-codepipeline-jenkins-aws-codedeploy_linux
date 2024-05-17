@@ -369,6 +369,7 @@ impl Config {
     pub fn track_offset(&self, len: u64) {
         let synced = *self.in_sync.read().unwrap();
         if synced {
+            println!("actually adding {len} to offset, current value: {}", self.get_offset());
             *self.offset.write().unwrap() += len;
         }
     }
@@ -406,6 +407,7 @@ pub fn slave_thread(
     // read data from socket
     loop {
         if let Ok(len) = stream.read(&mut buf) {
+            slavecfg.as_ref().unwrap().track_offset(len as u64);
             if len <= 0 {
                 println!("read {len} bytes and hence existing...");
                 break;
