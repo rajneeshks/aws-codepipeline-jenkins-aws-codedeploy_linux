@@ -229,19 +229,26 @@ impl PSync {
             return Err(format!("Error sending PSYNC command"));
         }
         let mut buf = BytesMut::with_capacity(1500);
-        unsafe {
-            buf.set_len(1500);
-        }
-        if let Ok(len) = stream.read(&mut buf) {
-            println!("received response of {len} length for PSync2 command");
-            if len <= 0 {
-                // sleep and retry
-                return Err("Did not receive appropriate command response (PSYNC)".to_string());
-            }
+        let total_len_received = 0;
+
+        // hack - may be sent over multiple commands - how to do we know its the end?
+        while total_len_received < 100 {
             unsafe {
-                buf.set_len(len);
+                buf.set_len(1500);
             }
-            if len > 10 {
+            if let Ok(len) = stream.read(&mut buf) {
+                if len <= 0 {
+                    // sleep and retry
+                    return Err("Did not receive appropriate command response (PSYNC)".to_string());
+                }
+                unsafe {
+                    buf.set_len(len);
+                }
+                println!("PSync2 Raw response of {len} bytes: {:?}", buf);
+            }
+        }
+        {
+            if total_len_received > 10 {
                 println!("PSync Assuming success - need to parse this input properly!!");
                 return Ok(());
             }
