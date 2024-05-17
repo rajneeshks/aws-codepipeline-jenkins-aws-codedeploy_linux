@@ -115,6 +115,7 @@ impl DataType {
 
     fn parse(buf: &BytesMut) -> Result<Vec<DataType>, String> {
         let mut result: Vec<DataType> = vec![];
+        println!("------------ parsing now: {}", buf);
         // read one character at a time
         let mut idx = 0;
         while idx < buf.len() {
