@@ -70,6 +70,9 @@ impl DataType {
         // get to the next \r\n
         let mut end = Self::get_next_token(buf, start+1)?;
         let mut num_chars: usize = 0;
+        
+        // handle null bulk string ($-1\r\n)
+
         for i in start+1..=end-2 {
             num_chars = num_chars*10 + (buf[i] - '0' as u8) as usize;
         }
@@ -110,7 +113,7 @@ impl DataType {
             end += length;
             num_args -= 1;
         }
-        Ok((DataType::Array(result), end))
+        Ok((DataType::Array(result), end-start))
     }
 
     fn parse(buf: &BytesMut) -> Result<Vec<DataType>, String> {
