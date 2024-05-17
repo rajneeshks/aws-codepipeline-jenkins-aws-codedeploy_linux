@@ -25,7 +25,7 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
         let mut response = String::new();
-        if self.replication_conn {
+        if true || self.replication_conn {
             if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
                 let _ = std::fmt::write(&mut response,
                     format_args!("REPLCONF ACK 0\r\n"));
