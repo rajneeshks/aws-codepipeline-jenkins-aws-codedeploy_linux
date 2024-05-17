@@ -28,7 +28,7 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         if true || self.replication_conn {
             if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
                 let _ = std::fmt::write(&mut response,
-                    format_args!("REPLCONF ACK 0\r\n"));
+                    format_args!("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n"));
             } else { // slave is looking for a response
                 let _ = std::fmt::write(&mut response,
                     format_args!("+OK\r\n"));
