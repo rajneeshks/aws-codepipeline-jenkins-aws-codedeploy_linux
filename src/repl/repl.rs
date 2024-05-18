@@ -157,6 +157,10 @@ impl ReplicationConfig {
             }
         }
     }
+
+    pub fn num_replicas(&self) -> usize {
+        self.replcfg.read().unwrap().nodes.len()
+    }
 }
 
 pub fn replicator(
