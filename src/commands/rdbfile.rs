@@ -20,7 +20,7 @@ impl<'a> incoming::CommandHandler for RDBFile<'a> {
         Ok(())
     }
 
-    fn track_offset(&self, slavecfg: &Option<slave::Config>, _stream: &mut TcpStream) -> std::io::Result<()>{
+    fn track_offset(&self, slavecfg: &Option<slave::Config>, _stream: &mut TcpStream, _length: usize) -> std::io::Result<()>{
         if let Some(cfg) = slavecfg.as_ref() {
             println!("Started tracking offsets now!!");
             cfg.synced_in();

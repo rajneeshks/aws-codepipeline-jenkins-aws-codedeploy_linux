@@ -8,11 +8,11 @@ const BULK_STRING_MARKER: char = '$';
 
 #[derive(Debug)]
 pub enum DataType {
-    Array(Vec<String>),
-    SimpleString(String),
-    SimpleError(String),
-    Integers(i64),
-    BulkString(Vec<u8>),
+    Array(Vec<String>, usize, usize),
+    SimpleString(String, usize, usize),
+    SimpleError(String, usize, usize),
+    Integers(i64, usize, usize),
+    BulkString(Vec<u8>, usize, usize),
     Invalid(String),
 }
 
@@ -54,7 +54,7 @@ impl DataType {
             return Err("its not a simple error - aborting parsing..".to_string());
         }
         if let Ok((cmdstr, consumed_len)) = Self::parse_simple_stuff(buf, start) {
-            return Ok((DataType::SimpleError(cmdstr), consumed_len));
+            return Ok((DataType::SimpleError(cmdstr, start, start+consumed_len), consumed_len));
         }
         Err("Error converting simple error appropriately!".to_string())
     }
@@ -65,7 +65,7 @@ impl DataType {
             return Err("its not a simple string - aborting parsing..".to_string());
         }
         if let Ok((cmdstr, consumed_len)) = Self::parse_simple_stuff(buf, start) {
-            return Ok((DataType::SimpleString(cmdstr.to_lowercase()), consumed_len));
+            return Ok((DataType::SimpleString(cmdstr.to_lowercase(), start, start+consumed_len), consumed_len));
         }
         Err("Error converting Simple string appropriately!".to_string())
     }
@@ -94,7 +94,7 @@ impl DataType {
                 number *= -1;
             }
         }
-        Ok((DataType::Integers(number), end - start))
+        Ok((DataType::Integers(number, start, end), end - start))
     }
 
     // parses bulk string that is subset of other command
@@ -125,6 +125,8 @@ impl DataType {
                 } else {
                     last_idx_consumed -= 1;
                 }
+            } else {
+                last_idx_consumed -= 1;
             }
             return Ok((cmd, last_idx_consumed));
         }
@@ -135,7 +137,7 @@ impl DataType {
     // parses incoming bulk string command
     fn parse_bulk_string(buf: &BytesMut, start: usize) -> Result<(DataType, usize), String> {
         let (cmd, end) = Self::_parse_bulk_string(buf, start)?;
-        Ok((DataType::BulkString(cmd), end - start))
+        Ok((DataType::BulkString(cmd, start, end), end - start))
     }
 
     // parses incoming command that is an array
@@ -159,7 +161,7 @@ impl DataType {
             end = new_end;
             num_args -= 1;
         }
-        Ok((DataType::Array(result), end - start))
+        Ok((DataType::Array(result, start, end), end - start))
     }
 
     fn parse(buf: &BytesMut) -> Result<Vec<DataType>, String> {
@@ -206,23 +208,35 @@ impl DataType {
 
     pub fn to_wire(&self, ss: &str) -> String {
         match self {
-            DataType::SimpleString(_s) => format!("+{}\r\n", ss),
-            DataType::SimpleError(_s) => format!("-{}\r\n", ss),
-            DataType::Integers(val) => format!(":{val}\r\n"),
-            DataType::BulkString(_s) => format!("${}\r\n{}\r\n", ss.chars().count(), ss),
+            DataType::SimpleString(_s, _start, _end) => format!("+{}\r\n", ss),
+            DataType::SimpleError(_s, _start, _end) => format!("-{}\r\n", ss),
+            DataType::Integers(val, _start, _end) => format!(":{val}\r\n"),
+            DataType::BulkString(_s, _start, _end) => format!("${}\r\n{}\r\n", ss.chars().count(), ss),
             _ => format!("-Unsupported value or command: {}\r\n", ss),
         }
+    }
+    
+    pub fn len(&self) -> usize {
+        match self {
+            DataType::SimpleString(_s, start, end) => 1+end-start,
+            DataType::SimpleError(_s, start, end) => 1+end-start,
+            DataType::Integers(_val, start, end) => 1+end-start,
+            DataType::BulkString(_s, start, end) => 1+end-start,
+            DataType::Array(_s, start, end) => 1+end-start,
+            DataType::Invalid(s) => 0,
+        }
+        
     }
 }
 
 impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataType::SimpleString(s) => write!(f, "Simple String: {}", s),
-            DataType::SimpleError(s) => write!(f, "Simple Error: {}", s),
-            DataType::Integers(val) => write!(f, "Integer: {}", val),
-            DataType::BulkString(s) => write!(f, "Bulk String: {:?}", s),
-            DataType::Array(s) => write!(f, "Array: {:?}", s),
+            DataType::SimpleString(s, start, end) => write!(f, "Simple String: {} ({}:{})", s, start, end),
+            DataType::SimpleError(s, start, end) => write!(f, "Simple Error: {} ({}:{})", s, start, end),
+            DataType::Integers(val, start, end) => write!(f, "Integer: {} ({}:{})", val, start, end),
+            DataType::BulkString(s, start, end) => write!(f, "Bulk String: {:?} ({}:{})", s, start, end),
+            DataType::Array(s, start, end) => write!(f, "Array: {:?} ({}:{})", s, start, end),
             DataType::Invalid(s) => write!(f, "invalid: {:?}", s),
             _ => write!(f, "{}", "-Unsupported value or command\r\n"),
         }

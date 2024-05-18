@@ -407,7 +407,7 @@ pub fn slave_thread(
     // read data from socket
     loop {
         if let Ok(len) = stream.read(&mut buf) {
-            slavecfg.as_ref().unwrap().track_offset(len as u64);
+            
             if len <= 0 {
                 println!("read {len} bytes and hence existing...");
                 break;

@@ -6,9 +6,11 @@ use crate::commands::ss;
 use crate::repl::repl;
 use crate::slave::slave;
 use crate::store::db;
+use bytes::Bytes;
 use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
+use std::ops::Rem;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -41,7 +43,10 @@ pub trait CommandHandler {
 
     // for tracking slave offset - per received buffer, its done in main thread
     // this is for any further processing or specific response
-    fn track_offset(&self, _slavecfg: &Option<slave::Config>, _stream: &mut TcpStream) -> std::io::Result<()>{
+    fn track_offset(&self, slavecfg: &Option<slave::Config>, _stream: &mut TcpStream, length: usize) -> std::io::Result<()>{
+        if let Some(cfg) = slavecfg {
+            cfg.track_offset(length as u64);
+        }
         Ok(())
     }
 }
@@ -75,17 +80,25 @@ impl<'a, 'b> Incoming<'b> {
     ) -> std::io::Result<()> {
         for command in &self.commands {
             let mut handler = None;
+            let mut start = 0;
+            let mut end = 0;
             match command {
-                resp::DataType::SimpleString(ref cmd) => {
+                resp::DataType::SimpleString(ref cmd, _start, _end) => {
                     handler = Some(ss::simple_string_command_handler(cmd, self.replication_conn));
+                    start = *_start;
+                    end = *_end;
                 },
-                resp::DataType::Array(ref cmd) => {
+                resp::DataType::Array(ref cmd, _start, _end) => {
                     handler = Some(array::array_type_handler(cmd, self.replication_conn));
+                    start = *_start;
+                    end = *_end;
                 },
-                resp::DataType::BulkString(ref cmd) => {
+                resp::DataType::BulkString(ref cmd, _start, _end) => {
                     handler = Some(bulk::bulk_string_type_handler(cmd, self.replication_conn));
+                    start = *_start;
+                    end = *_end;
                 },
-                resp::DataType::SimpleError(ref _cmd) => { // received error message, may be log it for now
+                resp::DataType::SimpleError(ref _cmd, _start, _end) => { // received error message, may be log it for now
                     println!("Received Simple error command: {}", command);
                 },
                 _ => if !self.replication_conn {
@@ -98,7 +111,7 @@ impl<'a, 'b> Incoming<'b> {
                 let result1 = f.handle(stream, db);
                 let result2 = f.replicate(self.buf, repl_ch);
                 let result3 = f.repl_config(stream, replcfg);
-                let result4 = f.track_offset(slavecfg, stream);
+                let result4 = f.track_offset(slavecfg, stream, command.len());
 
                 if result1.is_err() { 
                     println!("Error processing command for {}", command);
@@ -127,8 +140,8 @@ impl<'a, 'b> Incoming<'b> {
             return "invalid command index".to_string();
         }
         match self.commands[id] {
-            resp::DataType::SimpleString(ref cmd) => cmd.clone(),
-            resp::DataType::Array(ref cmd) => cmd[0].clone(),
+            resp::DataType::SimpleString(ref cmd, _, _) => cmd.clone(),
+            resp::DataType::Array(ref cmd, _, _) => cmd[0].clone(),
             _ => return "not implemented".to_string(),
         }
     }

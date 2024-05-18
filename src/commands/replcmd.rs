@@ -48,10 +48,11 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
             Ok(())
         }
 
-    fn track_offset(&self, slavecfg: &Option<slave::Config>, stream: &mut TcpStream) -> std::io::Result<()>{
+    fn track_offset(&self, slavecfg: &Option<slave::Config>, stream: &mut TcpStream, length: usize) -> std::io::Result<()>{
         let mut offset = 0;
         if let Some(cfg) = slavecfg.as_ref() {
             offset = cfg.get_offset();
+            cfg.track_offset(length as u64);
         }
         if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
             // lets send it out!
