@@ -114,19 +114,19 @@ impl<'a, 'b> Incoming<'b> {
                 let result4 = f.track_offset(slavecfg, stream, command.len());
 
                 if result1.is_err() { 
-                    println!("Error processing command for {}", command);
+                    println!("Error processing command for {} - result1: {:?}", command, result1);
                     // return result1; 
                 }
                 if result2.is_err() { 
-                    println!("Error processing replication for {}", command);
+                    println!("Error processing replication for {} - result2: {:?}", command, result2);
                     //return result2; 
                 }
                 if result3.is_err() {
-                    println!("Error updating repl configuration for {}", command);
+                    println!("Error updating repl configuration for {} - result3: {:?}", command, result3);
                     //return result3;
                 }
                 if result4.is_err() {
-                    println!("Error updating slave offset for {}", command);
+                    println!("Error updating slave offset for {} for result4: {:?}", command, result4);
                     //return result3;
                 }
             }

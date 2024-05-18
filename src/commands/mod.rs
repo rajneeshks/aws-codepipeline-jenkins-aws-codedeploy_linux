@@ -11,3 +11,4 @@ pub mod rdbfile;
 pub mod replcmd;
 pub mod resp;
 pub mod ss;
+pub mod wait;

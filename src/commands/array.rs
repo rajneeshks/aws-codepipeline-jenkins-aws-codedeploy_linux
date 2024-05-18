@@ -6,6 +6,7 @@ use crate::commands::ping;
 use crate::commands::psync;
 use crate::commands::replcmd;
 use crate::commands::ss;
+use crate::commands::wait;
 
 pub fn get_nth_arg(values: &Vec<String>, id: usize) -> Option<&String> {
     if values.len() <= id {
@@ -34,6 +35,8 @@ pub fn array_type_handler(
         return Box::new(replcmd::ReplCommand::new(cmd, replication_conn));
     } else if cmd[0].contains("psync") {
         return Box::new(psync::PSync::new(cmd, replication_conn));
+    } else if cmd[0].contains("wait") {
+        return Box::new(wait::Wait::new(cmd, replication_conn));
     }
 
     Box::new(ss::InvalidCommand::new(replication_conn))
