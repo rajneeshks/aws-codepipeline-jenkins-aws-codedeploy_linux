@@ -71,6 +71,17 @@ impl ReplicationNode {
     pub fn mark_ready(&mut self) {
         self.ready = true;
     }
+
+    fn get_ack(&mut self, _ack: u64) -> std::io::Result<()> {
+        let cmd = b"*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n";
+        if let Some(connection) = self.connection.as_mut() {
+            connection.write_all(cmd)?
+        }
+        Err(std::io::Error::new(
+            ErrorKind::Other,
+            "No connection to the replica! we should not be here",
+        ))
+    }
 }
 
 struct ReplicationConfigInternal {
@@ -133,7 +144,7 @@ impl ReplicationConfig {
         Ok(())
     }
 
-    pub fn add_capabilities(&mut self, _peer_addr: &str) {
+    pub fn _add_capabilities(&mut self, _peer_addr: &str) {
         todo!()
     }
 
@@ -156,6 +167,17 @@ impl ReplicationConfig {
                 }
             }
         }
+    }
+
+    pub fn get_acks(&self, ackid: u64)-> std::io::Result<()>{
+        let mut config = self.replcfg.write().unwrap();
+        for  i in 0..config.nodes.len() {
+            config.nodes[i].get_ack(ackid)?
+        }
+        Err(std::io::Error::new(
+            ErrorKind::Other,
+            "No connection to the replica! we should not be here",
+        ))
     }
 
     pub fn num_replicas(&self) -> usize {

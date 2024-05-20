@@ -30,6 +30,10 @@ impl<'a> incoming::CommandHandler for Wait<'a> {
         if self.replication_conn {
             return Ok(());
         }
+        if replcfg.num_replicas() > 0 {
+            let _ = replcfg.get_acks(0);
+            println!("sent acks to the replicas - should be in a state machine");
+        }
         let response = format!(":{}\r\n", replcfg.num_replicas());
         stream.write_all(response.as_bytes())
     }
