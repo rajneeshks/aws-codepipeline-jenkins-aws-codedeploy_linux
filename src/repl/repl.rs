@@ -214,10 +214,20 @@ impl ReplicationConfig {
                     "Replicatin node acked: {} to {}:{}",
                     peer_addr, replcfg.nodes[i].ip, replcfg.nodes[i].port
                 );
-                replcfg.nodes[i].replication_acked(_ack_id);
+                let _ = replcfg.nodes[i].replication_acked(_ack_id);
             }
         }
         Ok(())
+    }
+
+    pub fn replication_connection(&self, peer_addr: &str) -> bool {
+        let replcfg = self.replcfg.read().unwrap();
+        for i in 0..replcfg.nodes.len() {
+            if replcfg.nodes[i].peer_addr == *peer_addr {
+                return replcfg.nodes[i].ready;
+            }
+        }
+        false
     }
 
 }

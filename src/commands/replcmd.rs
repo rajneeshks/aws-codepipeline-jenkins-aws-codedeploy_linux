@@ -29,7 +29,8 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         if self.replication_conn {
             return Ok(());
         }
-        stream.write_all(b"+OK\r\n")
+        //stream.write_all(b"+OK\r\n")
+        Ok(())
     }
 
     // should be done only if this is master node
@@ -45,7 +46,11 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
                 println!("Error creating replication node!!: {}", e);
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
             }
-            Ok(())
+            let peer_addr = format!("{}", stream.peer_addr().unwrap());
+            if replcfg.replication_connection(&peer_addr) || self.replication_conn {
+                return Ok(());
+            }
+            stream.write_all(b"+OK\r\n")
         }
 
     fn track_offset(&self, slavecfg: &Option<slave::Config>, stream: &mut TcpStream, length: usize) -> std::io::Result<()>{

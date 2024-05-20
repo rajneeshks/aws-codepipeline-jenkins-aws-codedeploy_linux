@@ -72,7 +72,7 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
             return Err(std::io::Error::new(std::io::ErrorKind::Other,
                 format!("failed set command: {:?}", self.cmd)));
         }
-        //if self.replication_conn { return Ok(()); }
+        if self.replication_conn { return Ok(()); }
 
         if let Ok(_o) =  db_result {
             // replicate it now
