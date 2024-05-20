@@ -191,7 +191,6 @@ impl ReplicationConfig {
 
     pub fn get_acks(&self, ackid: u64)-> std::io::Result<()>{
         let mut config = self.replcfg.write().unwrap();
-        println!("*************  number of replication nodes: {}", config.nodes.len());
         for  i in 0..config.nodes.len() {
             let _ = config.nodes[i].get_ack(ackid);
         }
@@ -207,10 +206,6 @@ impl ReplicationConfig {
     }
 
     pub fn num_replicas_acked(&self) -> usize {
-        let replcfg = self.replcfg.read().unwrap();
-        for i in 0..replcfg.nodes.len() {
-            println!("node: {}, repl_id: {}, ack_id: {}", i, replcfg.nodes[i].repl_id, replcfg.nodes[i].ack_id);
-        }
         self.replcfg.read().unwrap().nodes.iter().filter(|node| !node.pending()).count()
     }
 

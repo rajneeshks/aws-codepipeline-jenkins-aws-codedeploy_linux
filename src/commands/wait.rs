@@ -62,6 +62,8 @@ impl<'a> incoming::CommandHandler for Wait<'a> {
         }
 
         let response = format!(":{}\r\n", replcfg.num_replicas_acked());
+
+        // BLAH BLAH BLAH ---- REMOVE ME
         // clear the ACKs - to get past stupid broken test case
         replcfg.clear_pending_acks();
 
