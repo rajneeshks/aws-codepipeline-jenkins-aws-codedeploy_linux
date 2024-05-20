@@ -53,6 +53,9 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         if let Some(cfg) = slavecfg.as_ref() {
             offset = cfg.get_offset();
             cfg.track_offset(length as u64);
+        } else {
+            // for a slave node, this won't be set
+            return Ok(());  
         }
         if self.cmd.len() >= 2 && self.cmd[1].to_lowercase().contains("getack") {
             // lets send it out!

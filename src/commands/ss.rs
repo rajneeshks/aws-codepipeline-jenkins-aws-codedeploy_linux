@@ -2,10 +2,12 @@ use crate::commands::incoming;
 use crate::commands::ping;
 use crate::commands::resp;
 use crate::commands::fullresync;
+use crate::repl::repl;
 use crate::store::db;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
+use std::io::ErrorKind;
 
 pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
     println!("---------- ************* sending invalid command ***********-----------");
@@ -47,7 +49,27 @@ impl incoming::CommandHandler for OkResponse {
         _stream: &mut TcpStream,
         _store: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        println!("dropping it --- is it on replication connection: {}", self.replication_conn);
+        println!("is it on replication connection: {}, if not master side??", self.replication_conn);
+        Ok(())
+    }
+
+        // should be done only if this is master node
+    fn repl_config(
+        &self,
+        stream: &mut TcpStream,
+        replcfg: &Arc<repl::ReplicationConfig>
+    ) -> std::io::Result<()> {
+        if replcfg.num_replicas() > 0 {
+            let peer_addr = format!("{}", stream.peer_addr().unwrap());
+            println!("peer address for replication ack: {:?}", peer_addr);
+            if let Err(e) = replcfg.replication_acked(&peer_addr, 0) {
+                println!("Error updating ackid from slave node!!");
+                return Err(std::io::Error::new(
+                    ErrorKind::Other,
+                    "some error: {}"
+                ));
+            }
+        }
         Ok(())
     }
 }

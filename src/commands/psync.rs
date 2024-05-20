@@ -23,7 +23,7 @@ impl<'a> incoming::CommandHandler for PSync<'a> {
     fn handle(
         &self,
         stream: &mut TcpStream,
-        db: &Arc<db::DB>,
+        _db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
         let database = rdb::RDB::new();
         let mut response = vec![];
@@ -34,6 +34,8 @@ impl<'a> incoming::CommandHandler for PSync<'a> {
         } else {
             println!("---------- Error decoding RDB content ----------");
         }
+
+        // how do we know if this is master/slave connection
         stream.write_all(&response)
     }
 

@@ -76,6 +76,7 @@ impl<'a, 'b> Incoming<'b> {
         slavecfg: &Option<slave::Config>,
     ) -> std::io::Result<()> {
         for command in &self.commands {
+            println!("processing command: {}", command);
             let mut handler = None;
             let mut start = 0;
             let mut end = 0;
