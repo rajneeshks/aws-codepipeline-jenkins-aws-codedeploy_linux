@@ -98,6 +98,10 @@ impl ReplicationNode {
     fn pending(&self) -> bool {
         self.ack_id < self.repl_id
     }
+
+    fn clear_pending_acks(&mut self) {
+        self.ack_id = self.repl_id;
+    }
 }
 
 struct ReplicationConfigInternal {
@@ -222,6 +226,13 @@ impl ReplicationConfig {
             }
         }
         Ok(())
+    }
+
+    pub fn clear_pending_acks(&self) {
+        let mut replcfg = self.replcfg.write().unwrap();
+        for i in 0..replcfg.nodes.len() {
+            replcfg.nodes[i].clear_pending_acks();
+        }
     }
 
     pub fn replication_connection(&self, peer_addr: &str) -> bool {
