@@ -203,6 +203,10 @@ impl ReplicationConfig {
     }
 
     pub fn num_replicas_acked(&self) -> usize {
+        let replcfg = self.replcfg.read().unwrap();
+        for i in 0..replcfg.nodes.len() {
+            println!("node: {}, repl_id: {}, ack_id: {}", i, replcfg.nodes[i].repl_id, replcfg.nodes[i].ack_id);
+        }
         self.replcfg.read().unwrap().nodes.iter().filter(|node| !node.pending()).count()
     }
 
