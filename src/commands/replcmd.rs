@@ -94,7 +94,7 @@ fn parse_repl_options(
         } else if o.contains("capa") {
             println!("its second replconf - we should update slave capabilities");
             return Ok(());
-        } else if o.contains("getack") || o.contains("GETACK") {
+        } else if o.contains("getack") || o.contains("GETACK") || o.contains("ACK") || o.contains("ack") {
             return Ok(());
         }
     }

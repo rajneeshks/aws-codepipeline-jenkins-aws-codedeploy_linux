@@ -426,7 +426,7 @@ pub fn slave_thread(
         }
     }
 
-    println!("Done with this socket - closing....");
+    println!("replication connection (slave thread): Done with this socket - closing....");
     let _ = stream.shutdown(Shutdown::Both);
 
 }

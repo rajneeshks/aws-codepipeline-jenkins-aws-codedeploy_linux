@@ -6,15 +6,12 @@ use crate::commands::ss;
 use crate::repl::repl;
 use crate::slave::slave;
 use crate::store::db;
-use bytes::Bytes;
 use bytes::BytesMut;
 use std::io::Write;
 use std::net::TcpStream;
-use std::ops::Rem;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-const COMMAND_DELIMITER: &str = "\r\n";
 
 pub trait CommandHandler {
     fn handle(
