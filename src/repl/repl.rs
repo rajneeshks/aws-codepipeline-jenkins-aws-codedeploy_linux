@@ -75,7 +75,7 @@ impl ReplicationNode {
     fn get_ack(&mut self, _ack: u64) -> std::io::Result<()> {
         let cmd = b"*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n";
         if let Some(connection) = self.connection.as_mut() {
-            println!("sending replconf getack request to slave: {}", self.peer_addr);
+            println!("sending replconf getack request to slave: {}, peer address: {}", self.peer_addr, connection.peer_addr());
             connection.write_all(cmd)?
         }
         Err(std::io::Error::new(
