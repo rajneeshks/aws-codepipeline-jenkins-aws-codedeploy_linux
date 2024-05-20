@@ -94,8 +94,16 @@ fn parse_repl_options(
         } else if o.contains("capa") {
             println!("its second replconf - we should update slave capabilities");
             return Ok(());
-        } else if o.contains("getack") || o.contains("GETACK") || o.contains("ACK") || o.contains("ack") {
+        } else if o.contains("getack") || o.contains("GETACK") {
             return Ok(());
+        } else if o.contains("ACK") || o.contains("ack") {
+            if let Some(ack) = array::get_nth_arg(cmd, 2) {
+                if let Ok(ack_id) = ack.parse::<u64>() {
+                    if let Ok(_) = replcfg.replication_acked(&peer_addr_complete, ack_id) {
+                        return Ok(());
+                    }
+                }
+            }
         }
     }
     Err("Error with REPL options".to_string())

@@ -4,6 +4,8 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 use crate::repl::repl;
+use std::thread;
+use std::time;
 
 #[derive(Debug, Clone)]
 pub struct Wait<'a> {
@@ -33,8 +35,10 @@ impl<'a> incoming::CommandHandler for Wait<'a> {
         if replcfg.num_replicas() > 0 {
             let _ = replcfg.get_acks(0);
             println!("sent acks to the replicas - should be in a state machine");
+            // TODO! make it better
+            thread::sleep(time::Duration::from_millis(500));
         }
-        let response = format!(":{}\r\n", replcfg.num_replicas());
+        let response = format!(":{}\r\n", replcfg.num_replicas_acked());
         stream.write_all(response.as_bytes())
     }
 }

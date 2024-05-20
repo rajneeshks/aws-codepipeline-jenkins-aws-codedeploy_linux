@@ -20,6 +20,7 @@ pub struct ReplicationNode {
     connection: Option<TcpStream>,
     ready: bool,
     repl_id: u64,
+    ack_id: u64,
 }
 
 impl ReplicationNode {
@@ -33,6 +34,7 @@ impl ReplicationNode {
             connection: None,
             ready: false,
             repl_id: 0,
+            ack_id: 0,
         }
     }
 
@@ -47,8 +49,8 @@ impl ReplicationNode {
                 "slave is not connected!",
             ));
         }
-        if let Some(mut connection) = self.connection.as_mut() {
-            for cmd in self.repl_id as usize..buffers.len() {
+        if let Some(connection) = self.connection.as_mut() {
+            while self.repl_id < buffers.len() as u64 {
                 let rslt = connection.write_all(&buffers[self.repl_id as usize]);
                 if rslt.is_err() {
                     return rslt;
@@ -60,6 +62,15 @@ impl ReplicationNode {
             ErrorKind::Other,
             "unable to send replication command!",
         ))
+    }
+
+    fn replication_acked(&mut self, id: u64) -> Result<(), String>{
+        if !self.ready {
+            println!("node not ready for replication...");
+            return Ok(());
+        }
+        self.ack_id += 1;
+        Ok(())
     }
 
     pub fn shutdown(&mut self) {
@@ -82,6 +93,10 @@ impl ReplicationNode {
             ErrorKind::Other,
             "No connection to the replica! we should not be here",
         ))
+    }
+
+    fn pending(&self) -> bool {
+        self.ack_id < self.repl_id
     }
 }
 
@@ -186,6 +201,25 @@ impl ReplicationConfig {
     pub fn num_replicas(&self) -> usize {
         self.replcfg.read().unwrap().nodes.len()
     }
+
+    pub fn num_replicas_acked(&self) -> usize {
+        self.replcfg.read().unwrap().nodes.iter().filter(|node| !node.pending()).count()
+    }
+
+    pub fn replication_acked(&self, peer_addr: &str, _ack_id: u64) -> Result<(), String>{
+        let mut replcfg = self.replcfg.write().unwrap();
+        for i in 0..replcfg.nodes.len() {
+            if replcfg.nodes[i].peer_addr == *peer_addr {
+                println!(
+                    "Replicatin node acked: {} to {}:{}",
+                    peer_addr, replcfg.nodes[i].ip, replcfg.nodes[i].port
+                );
+                replcfg.nodes[i].replication_acked(_ack_id);
+            }
+        }
+        Ok(())
+    }
+
 }
 
 pub fn replicator(
