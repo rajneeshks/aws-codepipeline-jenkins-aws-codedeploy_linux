@@ -25,11 +25,10 @@ impl<'a> incoming::CommandHandler for PSync<'a> {
         stream: &mut TcpStream,
         _db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
-        let database = rdb::RDB::new();
         let mut response = vec![];
         response
             .extend_from_slice("+FULLRESYNC 75cd7bc10c49047e0d163660f3b90625b1af31dc 0\r\n".as_bytes());
-        if let Ok(rdb_content) = database.get() {
+        if let Ok(rdb_content) = rdb::RDB::empty() {
             response.extend_from_slice(&rdb_content);
         } else {
             println!("---------- Error decoding RDB content ----------");

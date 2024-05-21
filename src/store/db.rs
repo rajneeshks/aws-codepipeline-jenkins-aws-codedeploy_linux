@@ -1,6 +1,7 @@
 // maintain in memory DB
 
 use crate::commands::getset;
+use crate::rdb::rdb;
 use crate::store::node_info;
 use std::collections::HashMap;
 use std::collections::LinkedList;
@@ -70,13 +71,15 @@ impl DBInternal {
 pub struct DB {
     store: Mutex<DBInternal>,
     node_info: node_info::NodeInfo,
+    rdb: rdb::RDB,
 }
 
 impl DB {
-    pub fn new(role_master: bool) -> Self {
+    pub fn new(role_master: bool, dir: Option<String>, db_filename: Option<String>) -> Self {
         Self {
             store: Mutex::new(DBInternal::new()),
             node_info: node_info::NodeInfo::new(role_master),
+            rdb: rdb::RDB::new(dir, db_filename),
         }
     }
 
@@ -126,6 +129,15 @@ impl DB {
     pub fn role_master(&self) -> bool {
         self.node_info.master
     }
+
+    pub fn rdb_directory(&self) -> &str {
+        self.rdb.get_rdb_directory()
+    }
+
+    pub fn rdb_filename(&self) -> &str {
+        self.rdb.get_rdb_filename()
+    }
+    
 }
 
 pub fn key_expiry_thread(db: Arc<DB>, loop_every_in_ms: u64) {

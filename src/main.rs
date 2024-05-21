@@ -23,6 +23,10 @@ struct Args {
     port: u16,
     #[clap(short, long)]
     replicaof: Option<String>,
+    #[clap(long)]
+    dir: Option<String>,
+    #[clap(long)]
+    dbfilename: Option<String>,
 }
 
 fn handle_connection(
@@ -99,7 +103,7 @@ fn main() {
 
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind(format!("127.0.0.1:{}", args.port)).unwrap();
-    let db = Arc::new(store::db::DB::new(role_master));
+    let db = Arc::new(store::db::DB::new(role_master, args.dir, args.dbfilename));
 
     // spawn expiry thread
     if true {

@@ -3,7 +3,6 @@ use crate::commands::incoming;
 use crate::commands::ss;
 use crate::store::db;
 use bytes::BytesMut;
-use clap::error::ErrorKind;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::Sender;
