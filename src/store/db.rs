@@ -154,6 +154,9 @@ impl DB {
             let _ = std::fmt::write(&mut response,
                 format_args!("${}\r\n{}\r\n", k.len(), k));
         }
+        if count == 0 {
+            return (format!("$-1\r\n"), count);
+        }
         (format!("*{}\r\n{}", count, response), count)
     }
 

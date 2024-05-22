@@ -178,6 +178,7 @@ impl RDB {
                 0xFB => {
                     // read length encoded int
                     if let Ok(len1) = Self::encoded_length(&mut reader) {
+                        println!("Found first integer of length: {}", len1);
                         let mut value1 = vec![0; len1];
                         reader.read_exact(&mut value1)?;
                         let hash_table_sz = match len1 {
@@ -187,6 +188,7 @@ impl RDB {
                             _ => 0,
                         };
                         if let Ok(len2) = Self::encoded_length(&mut reader) {
+                            println!("Found second integer of length: {}", len2);
                             let mut value2 = vec![0; len2];
                             reader.read_exact(&mut value2)?;
                             let expire_hash_tbl_sz = match len2 {
