@@ -8,6 +8,8 @@ use crate::commands::replcmd;
 use crate::commands::ss;
 use crate::commands::wait;
 use crate::commands::config;
+use crate::commands::keys;
+
 
 pub fn get_nth_arg(values: &Vec<String>, id: usize) -> Option<&String> {
     if values.len() <= id {
@@ -40,6 +42,8 @@ pub fn array_type_handler(
         return Box::new(wait::Wait::new(cmd, replication_conn));
     } else if cmd[0].contains("config") {
         return Box::new(config::Config::new(cmd, replication_conn));
+    } else if cmd[0].contains("keys") {
+        return Box::new(keys::Keys::new(cmd, replication_conn));
     }
 
     Box::new(ss::InvalidCommand::new(replication_conn))

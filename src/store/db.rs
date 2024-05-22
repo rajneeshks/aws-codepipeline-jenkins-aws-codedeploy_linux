@@ -6,7 +6,7 @@ use crate::store::node_info;
 use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -69,7 +69,7 @@ impl DBInternal {
 }
 
 pub struct DB {
-    store: Mutex<DBInternal>,
+    store: RwLock<DBInternal>,
     node_info: node_info::NodeInfo,
     rdb: rdb::RDB,
 }
@@ -77,7 +77,7 @@ pub struct DB {
 impl DB {
     pub fn new(role_master: bool, dir: Option<String>, db_filename: Option<String>) -> Self {
         let instance = Self {
-            store: Mutex::new(DBInternal::new()),
+            store: RwLock::new(DBInternal::new()),
             node_info: node_info::NodeInfo::new(role_master),
             rdb: rdb::RDB::new(dir, db_filename),
         };
@@ -100,15 +100,15 @@ impl DB {
         println!("Adding {key} with value: {value}");
         let mut retval = Ok(());
         {
-            let mut db = self.store.lock().unwrap();
+            let mut db = self.store.write().unwrap();
             retval = db.add(key, value, options);
         }
-        println!("DB at this stage: {:?}", self.store.lock().unwrap().db);
+        println!("DB at this stage: {:?}", self.store.read().unwrap().db);
         retval
     }
 
     pub fn remove(&self, key: &KeyValueType) -> Option<KeyValueType> {
-        if let Some(result) = self.store.lock().unwrap().db.remove(key) {
+        if let Some(result) = self.store.write().unwrap().db.remove(key) {
             return Some(result.value);
         }
         None
@@ -117,7 +117,7 @@ impl DB {
     pub fn get(&self, key: &String) -> Option<KeyValueType> {
         let mut value = None;
         {
-            if let Some(result) = self.store.lock().unwrap().db.get(key) {
+            if let Some(result) = self.store.read().unwrap().db.get(key) {
                 // clone so that we can release the lock
                 value = Some(result.clone());
             }
@@ -145,6 +145,18 @@ impl DB {
         self.rdb.get_rdb_filename()
     }
 
+    pub fn keys(&self) -> (String, u64) {
+        let mut response = String::from("");
+        let mut count: u64 = 0;
+        let db = self.store.read().unwrap();
+        for (k, _v) in db.db.iter() {
+            count += 1;
+            let _ = std::fmt::write(&mut response,
+                format_args!("${}\r\n{}\r\n", k.len(), k));
+        }
+        (format!("*{}\r\n{}", count, response), count)
+    }
+
 }
 
 pub fn key_expiry_thread(db: Arc<DB>, loop_every_in_ms: u64) {
@@ -153,7 +165,7 @@ pub fn key_expiry_thread(db: Arc<DB>, loop_every_in_ms: u64) {
     loop {
         let now = Instant::now();
         {
-            let store = db.store.lock().unwrap();
+            let store = db.store.read().unwrap();
             for (key, value) in store.db.iter() {
                 if value.expires && value.expiring_at < now {
                     expired_keys.push(key.clone());
@@ -161,7 +173,9 @@ pub fn key_expiry_thread(db: Arc<DB>, loop_every_in_ms: u64) {
             }
         }
 
-        // go over expiring entries
+        /*
+        ** go over expiring entries
+        */
         for key in expired_keys.iter() {
             println!("----- timer thread: Removing {key} -------");
             db.remove(key);
