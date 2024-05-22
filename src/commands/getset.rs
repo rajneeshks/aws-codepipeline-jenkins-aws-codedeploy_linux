@@ -50,10 +50,9 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
         let mut options = SetOptions::new();
         // search for expiry option
         let mut argidx = 3;
-        let px_option = "px".to_string();
         while let Some(opt) = array::get_nth_arg(cmd, argidx) {
-            match opt {
-                px_option => {
+            match opt.as_str() {
+                "px" => {
                     argidx += 1;
                     if let Some(expiry) = array::get_nth_arg(cmd, argidx) {
                         if let Ok(expiry_ms) = expiry.parse::<u64>() {

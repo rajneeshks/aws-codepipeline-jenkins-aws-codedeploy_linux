@@ -76,11 +76,18 @@ pub struct DB {
 
 impl DB {
     pub fn new(role_master: bool, dir: Option<String>, db_filename: Option<String>) -> Self {
-        Self {
+        let instance = Self {
             store: Mutex::new(DBInternal::new()),
             node_info: node_info::NodeInfo::new(role_master),
             rdb: rdb::RDB::new(dir, db_filename),
-        }
+        };
+
+        // if rdb DB file has been specified, read/load the DB
+      if let Err(e) = instance.rdb.load_rdb(&instance) {
+        println!("Error loading RDB for this slave device: {:?}", e);
+      }
+
+        instance
     }
 
     pub fn add(
@@ -137,7 +144,7 @@ impl DB {
     pub fn rdb_filename(&self) -> &str {
         self.rdb.get_rdb_filename()
     }
-    
+
 }
 
 pub fn key_expiry_thread(db: Arc<DB>, loop_every_in_ms: u64) {
