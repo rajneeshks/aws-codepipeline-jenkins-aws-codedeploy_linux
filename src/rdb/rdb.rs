@@ -34,7 +34,7 @@ impl RDB {
     fn add_to_db(db: &db::DB, k: &Vec<u8>, v: &Vec<u8>, expiry_in_ms: u64) -> Result<(), String> {
         // discard if key is already expired!
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-        if expiry_in_ms as u128 <= now.as_millis() {
+        if expiry_in_ms > 0 && expiry_in_ms as u128 <= now.as_millis() {
             println!("key expired already!!! - no need to add.. {} < {}", expiry_in_ms, now.as_millis());
             return Ok(());
         }
