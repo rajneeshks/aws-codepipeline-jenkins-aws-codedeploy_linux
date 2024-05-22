@@ -35,7 +35,7 @@ impl RDB {
         // discard if key is already expired!
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
         if expiry_in_ms as u128 <= now.as_millis() {
-            println!("key expired already!!! - no need to add");
+            println!("key expired already!!! - no need to add.. {} < {}", expiry_in_ms, now.as_millis());
             return Ok(());
         }
         let key = String::from_utf8_lossy(k);
