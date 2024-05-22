@@ -14,7 +14,7 @@ pub struct SetOptions {
 }
 
 impl SetOptions {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             ..Default::default()
         }
