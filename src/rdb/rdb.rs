@@ -229,7 +229,8 @@ impl RDB {
                     println!("FC Block - please decode me!");
                     let mut expiry_time_ms_db = [0; 8];
                     reader.read_exact(&mut expiry_time_ms_db)?;
-                    let expiry_time_ms = u64::from_ne_bytes(expiry_time_ms_db);
+                    // RDB uses Little endian
+                    let expiry_time_ms = u64::from_le_bytes(expiry_time_ms_db);
                     if let Ok((key, value)) = Self::read_key_value_with_type(None, &mut reader) {
                         println!("0xFC block - key: {}, value: {}, expiry: {} ms to be added in DB",
                         String::from_utf8_lossy(&key), String::from_utf8_lossy(&value), expiry_time_ms);
@@ -242,7 +243,8 @@ impl RDB {
                     println!("FD Block - please decode me!");
                     let mut expiry_time_sec_db = [0; 4];
                     reader.read_exact(&mut expiry_time_sec_db)?;
-                    let expiry_time_sec = u32::from_ne_bytes(expiry_time_sec_db) as u64;
+                    // RDB format uses little endian file format
+                    let expiry_time_sec = u32::from_le_bytes(expiry_time_sec_db) as u64;
                     if let Ok((key, value)) = Self::read_key_value_with_type(None, &mut reader) {
                         println!("0xFD block - key: {}, value: {} with expiry {} sec to be added in DB",
                         String::from_utf8_lossy(&key), String::from_utf8_lossy(&value), expiry_time_sec);
