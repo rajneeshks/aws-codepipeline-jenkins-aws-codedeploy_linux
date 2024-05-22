@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use crate::commands::getset;
-use std::borrow::Cow;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 enum RDBDataType {
 
@@ -32,6 +32,12 @@ impl RDB {
     }
 
     fn add_to_db(db: &db::DB, k: &Vec<u8>, v: &Vec<u8>, expiry_in_ms: u64) -> Result<(), String> {
+        // discard if key is already expired!
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+        if expiry_in_ms as u128 <= now.as_millis() {
+            println!("key expired already!!! - no need to add");
+            return Ok(());
+        }
         let key = String::from_utf8_lossy(k);
         let value = String::from_utf8_lossy(v);
         let mut options = getset::SetOptions::new();
