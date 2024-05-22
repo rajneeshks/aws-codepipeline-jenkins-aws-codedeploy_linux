@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use crate::commands::getset;
+use std::borrow::Cow;
 
 enum RDBDataType {
 
@@ -28,6 +29,14 @@ impl RDB {
 
     pub fn get_rdb_filename(&self) -> &str {
         &self.rdb_file
+    }
+
+    fn add_to_db(db: &db::DB, k: &Vec<u8>, v: &Vec<u8>, expiry_in_ms: u64) -> Result<(), String> {
+        let key = String::from_utf8_lossy(k);
+        let value = String::from_utf8_lossy(v);
+        let mut options = getset::SetOptions::new();
+        options.expiry_in_ms = expiry_in_ms;
+        db.add(key.into_owned(), value.into_owned(), &options)
     }
 
     fn checksum(&self) -> bool {
@@ -173,6 +182,8 @@ impl RDB {
 
         println!("REDIS version: {}", String::from_utf8(signature[5..].to_vec()).unwrap());
         let mut db_num = [0; 1];
+        let mut hash_table_sz = 0;
+        let mut expire_hash_tbl_sz = 0;
         loop {
             //read next byte to interpret what type it is?
             let mut opcode = [0; 1];
@@ -189,24 +200,27 @@ impl RDB {
                     // read length encoded int
                     if let Ok(len1) = Self::encoded_length(None, &mut reader) {
                         println!("Found first integer of length: {}", len1);
-                        let mut value1 = vec![0; len1];
+                        hash_table_sz = len1;
+                        /*let mut value1 = vec![0; len1];
                         reader.read_exact(&mut value1)?;
-                        let hash_table_sz = match len1 {
+                        hash_table_sz = match len1 {
                             1 => value1[0] as usize,
                             2 => 110, //u16::from_ne_bytes(value1) as usize,
                             4 => 220, //u32::from_ne_bytes(value1) as usize,
                             _ => 0,
-                        };
+                        };*/
                         if let Ok(len2) = Self::encoded_length(None, &mut reader) {
                             println!("Found second integer of length: {}", len2);
-                            let mut value2 = vec![0; len2];
+                            expire_hash_tbl_sz = len2;
+                            /*let mut value2 = vec![0; len2];
                             reader.read_exact(&mut value2)?;
-                            let expire_hash_tbl_sz = match len2 {
+                            expire_hash_tbl_sz = match len2 {
                                 1 => value2[0] as usize,
                                 2 => 110, //u16::from_ne_bytes(value2) as usize,
                                 4 => 220, //u32::from_ne_bytes(value2) as usize,
                                 _ => 0,
-                            };
+                            };*/
+
                             println!("0xFB block, value1: {:?}, value2: {:?}", hash_table_sz, expire_hash_tbl_sz);
                         }
                     }
@@ -219,16 +233,22 @@ impl RDB {
                     if let Ok((key, value)) = Self::read_key_value_with_type(None, &mut reader) {
                         println!("0xFC block - key: {}, value: {}, expiry: {} ms to be added in DB",
                         String::from_utf8_lossy(&key), String::from_utf8_lossy(&value), expiry_time_ms);
+                        if let Err(e) = Self::add_to_db(db, &key, &value, expiry_time_ms) {
+                            println!("Error adding key to the DB: {}", e);
+                        }
                     }
                 },
                 0xFD => {
                     println!("FD Block - please decode me!");
                     let mut expiry_time_sec_db = [0; 4];
                     reader.read_exact(&mut expiry_time_sec_db)?;
-                    let expiry_time_sec = u32::from_ne_bytes(expiry_time_sec_db) as usize;
+                    let expiry_time_sec = u32::from_ne_bytes(expiry_time_sec_db) as u64;
                     if let Ok((key, value)) = Self::read_key_value_with_type(None, &mut reader) {
                         println!("0xFD block - key: {}, value: {} with expiry {} sec to be added in DB",
                         String::from_utf8_lossy(&key), String::from_utf8_lossy(&value), expiry_time_sec);
+                        if let Err(e) = Self::add_to_db(db, &key, &value, expiry_time_sec*1000) {
+                            println!("Error adding key to the DB: {}", e);
+                        }
                     }
                 },
                 0xFE => {
@@ -240,14 +260,18 @@ impl RDB {
                     break;
                 },
                 _ => {
-                    println!("Invalid Opcode found, lets try reading the key and value pair: {}", opcode[0]);
-                    if let Ok((k, v)) = Self::read_key_value(Some(opcode[0]), &mut reader) {
-                        let key = String::from_utf8_lossy(&k);
-                        let value = String::from_utf8_lossy(&v);
-                        let options = getset::SetOptions::new();
-                        if let Err(e) = db.add(key.into_owned(), value.into_owned(), &options) {
-                            println!("Error adding key to the DB");
-                        }
+                    println!("Invalid Opcode found, lets try reading the key and value pair: {:x}", opcode[0]);
+                    println!("hash table size: {}, expiry hash table size: {}", hash_table_sz, expire_hash_tbl_sz);
+                    let mut start_opcode = Some(opcode[0]);
+                    let mut keys_read = 0;
+                    while keys_read < hash_table_sz{
+                        if let Ok((k, v)) = Self::read_key_value_with_type(start_opcode, &mut reader) {
+                            if let Err(e) = Self::add_to_db(db, &k, &v, 0) {
+                                println!("Error adding key to the DB: {}", e);
+                            }
+                        } else { break; }
+                        start_opcode = None;
+                        keys_read += 1;
                     }
                     //return Err(std::io::Error::new(std::io::ErrorKind::Other,
                     //    format!("Invalid RDB Opcode found: {}", opcode[0])));
