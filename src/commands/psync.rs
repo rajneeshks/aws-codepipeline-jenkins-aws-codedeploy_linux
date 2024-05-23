@@ -66,14 +66,11 @@ fn parse_psync_options(
             peer_addr_complete
         ));
     }
-    let mut optidx: usize = 1;
-    if let Some(o) = array::get_nth_arg(cmd, optidx) {
+    if let Some(o) = array::get_nth_arg(cmd, 1) {
         println!("replconf master index: {}", o);
-        optidx += 1;
         // if this is ? , means it does not know master IDX
-        if let Some(sync_id) = array::get_nth_arg(cmd, optidx) {
+        if let Some(sync_id) = array::get_nth_arg(cmd, 2) {
             println!("next option: {}", sync_id);
-            optidx += 1;
             if let Ok(syncid) = sync_id.parse::<i64>() {
                 // this will mark slave state ready for replication as well
                 replcfg.update_psync_repl_id(&peer_addr_complete, syncid, stream);

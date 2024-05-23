@@ -224,7 +224,7 @@ impl DataType {
             DataType::Integers(_val, start, end) => 1+end-start,
             DataType::BulkString(_s, start, end) => 1+end-start,
             DataType::Array(_s, start, end) => 1+end-start,
-            DataType::Invalid(s) => 0,
+            DataType::Invalid(_s) => 0,
         }
         
     }
@@ -239,7 +239,6 @@ impl std::fmt::Display for DataType {
             DataType::BulkString(s, start, end) => write!(f, "Bulk String: {:?} ({}:{})", s, start, end),
             DataType::Array(s, start, end) => write!(f, "Array: {:?} ({}:{})", s, start, end),
             DataType::Invalid(s) => write!(f, "invalid: {:?}", s),
-            _ => write!(f, "{}", "-Unsupported value or command\r\n"),
         }
     }
 }

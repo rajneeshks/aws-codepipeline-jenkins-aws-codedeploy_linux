@@ -8,7 +8,6 @@ use std::net::TcpStream;
 use std::sync::Arc;
 
 #[allow(dead_code)]
-
 #[derive(Debug, Clone)]
 pub struct ReplCommand<'a> {
     cmd: &'a Vec<String>,
@@ -56,7 +55,7 @@ impl<'a> incoming::CommandHandler for ReplCommand<'a> {
         }
 
     fn track_offset(&self, slavecfg: &Option<slave::Config>, stream: &mut TcpStream, length: usize) -> std::io::Result<()>{
-        let mut offset = 0;
+        let offset;
         if let Some(cfg) = slavecfg.as_ref() {
             offset = cfg.get_offset();
             cfg.track_offset(length as u64);
@@ -88,13 +87,10 @@ fn parse_repl_options(
             peer_addr_complete
         ));
     }
-    let mut optidx: usize = 1;
     println!("peer address: {:?}", peer_addr);
-    if let Some(o) = array::get_nth_arg(cmd, optidx) {
-        optidx += 1;
+    if let Some(o) = array::get_nth_arg(cmd, 1) {
         if o.contains("listening-port") {
             if let Some(port) = array::get_nth_arg(cmd, 2) {
-                optidx += 1;
                 if let Ok(pp) = port.parse::<u16>() {
                     if let Ok(_) = replcfg.add_node(peer_addr[0], pp, &peer_addr_complete) {
                         return Ok(());

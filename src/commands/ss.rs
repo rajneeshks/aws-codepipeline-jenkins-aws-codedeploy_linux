@@ -38,6 +38,7 @@ impl incoming::CommandHandler for InvalidCommand {
 pub struct OkResponse {
     replication_conn: bool,
 }
+
 impl OkResponse {
     pub fn new(replication_conn: bool) -> Self {
         Self {replication_conn}
@@ -64,7 +65,7 @@ impl incoming::CommandHandler for OkResponse {
             let peer_addr = format!("{}", stream.peer_addr().unwrap());
             println!("peer address for replication ack: {:?}", peer_addr);
             if let Err(e) = replcfg.replication_acked(&peer_addr, 0) {
-                println!("Error updating ackid from slave node!!");
+                println!("Error updating ackid from slave node!!, error: {}", e);
                 return Err(std::io::Error::new(
                     ErrorKind::Other,
                     "some error: {}"

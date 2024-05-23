@@ -66,7 +66,6 @@ impl Ping {
             }
             // verify that command contains +PONG
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("Ping - received command response: {}", cmd);
             if cmd.get_command(0).to_lowercase().contains("pong") {
                 return Ok(());
             }
@@ -130,8 +129,6 @@ impl ReplConf1 {
             }
             // verify that command contains +PONG
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("REPLCONF1 - received command: {}", cmd);
-
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -193,7 +190,6 @@ impl ReplConf2 {
             }
             // verify that command contains +OK
             let cmd = incoming::Incoming::new(&buf, true);
-            println!("REPLCONF2 - received command: {}", cmd);
             if cmd.get_command(0).to_lowercase().contains("ok") {
                 return Ok(());
             }
@@ -356,6 +352,7 @@ impl Config {
         }
     }
 
+    #[allow(dead_code)]
     pub fn shutdown(&mut self) {
         self.state = Some(Box::new(Init::new()));
         if let Some(conn) = &self.stream {

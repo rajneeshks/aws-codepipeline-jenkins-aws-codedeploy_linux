@@ -77,23 +77,15 @@ impl<'a, 'b> Incoming<'b> {
         for command in &self.commands {
             println!("processing command: {}", command);
             let mut handler = None;
-            let start;
-            let end;
             match command {
                 resp::DataType::SimpleString(ref cmd, _start, _end) => {
                     handler = Some(ss::simple_string_command_handler(cmd, self.replication_conn));
-                    start = *_start;
-                    end = *_end;
                 },
                 resp::DataType::Array(ref cmd, _start, _end) => {
                     handler = Some(array::array_type_handler(cmd, self.replication_conn));
-                    start = *_start;
-                    end = *_end;
                 },
                 resp::DataType::BulkString(ref cmd, _start, _end) => {
                     handler = Some(bulk::bulk_string_type_handler(cmd, self.replication_conn));
-                    start = *_start;
-                    end = *_end;
                 },
                 resp::DataType::SimpleError(ref _cmd, _start, _end) => { // received error message, may be log it for now
                     println!("Received Simple error command: {}", command);

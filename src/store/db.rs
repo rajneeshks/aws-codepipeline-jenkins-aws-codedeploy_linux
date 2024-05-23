@@ -97,7 +97,7 @@ impl DB {
     ) -> Result<(), String> {
         // TODO: convert into result type appropriately
         println!("Adding {key} with value: {:?}", value);
-        let mut retval = Ok(());
+        let retval;
         {
             let mut db = self.store.write().unwrap();
             retval = db.add(key, value, options);

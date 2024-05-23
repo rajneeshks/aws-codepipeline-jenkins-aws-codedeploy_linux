@@ -24,7 +24,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
     fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
         let mut response = String::new();
         if let Some(skey) = array::get_nth_arg(self.cmd, 1) {
-            if (skey.as_str() != "stream_key") { // return error 
+            if skey.as_str() != "stream_key" { // return error 
             }
             if let Some(skey_id) = array::get_nth_arg(self.cmd, 2) {
                 // save the key with value

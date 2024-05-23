@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crate::store::db;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ReplicationNode {
     id: String, // any ID
@@ -64,7 +65,7 @@ impl ReplicationNode {
         ))
     }
 
-    fn replication_acked(&mut self, id: u64) -> Result<(), String>{
+    fn replication_acked(&mut self, _id: u64) -> Result<(), String>{
         if !self.ready {
             println!("node not ready for replication...");
             return Ok(());
@@ -73,12 +74,14 @@ impl ReplicationNode {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn shutdown(&mut self) {
         if let Some(connection) = self.connection.take() {
             let _ = connection.shutdown(Shutdown::Both);
         }
     }
 
+    #[allow(dead_code)]
     pub fn mark_ready(&mut self) {
         self.ready = true;
     }
@@ -263,6 +266,7 @@ pub fn replicator(
     }
 }
 
+#[allow(dead_code)]
 fn discard_incoming_data(stream: &mut TcpStream) {
     let mut response: [u8; 1500] = [0; 1500];
     let _ = stream.set_read_timeout(Some(Duration::from_millis(1)));
