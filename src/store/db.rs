@@ -114,7 +114,7 @@ impl DB {
         None
     }
 
-    pub fn get(&self, key: &String) -> Option<KeyValueType> {
+    pub fn get(&self, key: &str) -> Option<KeyValueType> {
         let mut value = None;
         {
             if let Some(result) = self.store.read().unwrap().db.get(key) {

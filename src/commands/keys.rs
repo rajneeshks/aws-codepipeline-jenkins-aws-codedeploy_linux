@@ -23,8 +23,7 @@ impl<'a> incoming::CommandHandler for Keys<'a> {
         db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
         // read all the keys from DB and send them via an array.
-        let (response, count) = db.keys();
-        println!("Found {} keys and response: {}", count, response);
+        let (response, _count) = db.keys();
         stream.write_all(response.as_bytes())
     }
 }

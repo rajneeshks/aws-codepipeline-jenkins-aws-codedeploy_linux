@@ -9,6 +9,7 @@ use crate::commands::ss;
 use crate::commands::wait;
 use crate::commands::config;
 use crate::commands::keys;
+use crate::commands::ttype;
 
 
 pub fn get_nth_arg(values: &Vec<String>, id: usize) -> Option<&String> {
@@ -44,6 +45,8 @@ pub fn array_type_handler(
         return Box::new(config::Config::new(cmd, replication_conn));
     } else if cmd[0].contains("keys") {
         return Box::new(keys::Keys::new(cmd, replication_conn));
+    } else if cmd[0].contains("type") {
+        return Box::new(ttype::TType::new(cmd, replication_conn));
     }
 
     Box::new(ss::InvalidCommand::new(replication_conn))
