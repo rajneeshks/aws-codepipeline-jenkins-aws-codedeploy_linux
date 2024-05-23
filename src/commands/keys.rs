@@ -4,6 +4,8 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
+#[allow(dead_code)]
+
 #[derive(Debug, Clone)]
 pub struct Keys <'a>{
     cmd: &'a Vec<String>,

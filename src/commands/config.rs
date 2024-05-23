@@ -1,12 +1,11 @@
 use crate::commands::array;
 use crate::commands::incoming;
 use crate::store::db;
-use std::io::ErrorKind;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
-use super::ss::invalid;
+#[allow(dead_code)]
 
 #[derive(Debug, Clone)]
 pub struct Config<'a> {

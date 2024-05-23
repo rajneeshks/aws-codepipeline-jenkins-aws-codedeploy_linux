@@ -1,4 +1,3 @@
-use crate::commands;
 use crate::commands::incoming;
 use crate::store;
 use crate::repl;
@@ -10,6 +9,8 @@ use std::thread;
 use std::time;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
+
+#[allow(dead_code)]
 
 const MAX_RETRIES: u8 = 5;
 

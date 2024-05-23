@@ -64,7 +64,7 @@ impl<'a> incoming::CommandHandler for SetCommand<'a> {
             };
             argidx += 1;
         }
-        let db_result = db.add(key.clone(), val.clone(), &options);
+        let db_result = db.add(key.clone(), db::KeyValueType::StringType(val.clone()), &options);
         if db_result.is_err() {
             println!("Error writing into the DB");
             return Err(std::io::Error::new(std::io::ErrorKind::Other,
@@ -120,11 +120,15 @@ impl<'a> incoming::CommandHandler for GetCommand<'a> {
         let cmd = &self.cmd;
         let mut response = String::new();
         if let Some(key) = array::get_nth_arg(cmd, 1) {
-            if let Some(val) = db.get(key) {
-                let _ = std::fmt::write(
-                    &mut response,
-                    format_args!("${}\r\n{}\r\n", val.chars().count(), val),
-                );
+            if let Some(value) = db.get(key) {
+                match value {
+                    db::KeyValueType::StringType(val) | db::KeyValueType::StreamType(val) => {
+                        let _ = std::fmt::write(
+                            &mut response,
+                            format_args!("${}\r\n{}\r\n", val.chars().count(), val),
+                        );
+                    }
+                };
             } else {
                 // did not find
                 let _ = std::fmt::write(&mut response, format_args!("$-1\r\n"));

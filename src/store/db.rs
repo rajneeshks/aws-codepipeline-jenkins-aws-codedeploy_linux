@@ -1,28 +1,31 @@
 // maintain in memory DB
-
 use crate::commands::getset;
 use crate::rdb::rdb;
 use crate::store::node_info;
 use std::collections::HashMap;
-use std::collections::LinkedList;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-type KeyValueType = String;
+#[allow(dead_code)]
+
+#[derive(Debug, Clone)]
+pub enum KeyValueType {
+    StringType(String),
+    StreamType(String),
+}
 
 #[derive(Debug, Clone)]
 struct KeyValueData {
     key: String,
-    value: String,
+    value: KeyValueType,
     expires: bool,
-    inserted_at: Instant, // time stamp when this key was inserted
     expiring_at: Instant,
 }
 
 impl KeyValueData {
-    fn new(key: String, value: String, options: &getset::SetOptions) -> Self {
+    fn new(key: String, value: KeyValueType, options: &getset::SetOptions) -> Self {
         let now = Instant::now();
         let mut expires = false;
         if options.expiry_in_ms > 0 {
@@ -32,7 +35,6 @@ impl KeyValueData {
             key,
             value,
             expires,
-            inserted_at: now,
             expiring_at: now + Duration::from_millis(options.expiry_in_ms),
         }
     }
@@ -40,14 +42,12 @@ impl KeyValueData {
 
 struct DBInternal {
     db: HashMap<String, KeyValueData>,
-    expiry: LinkedList<KeyValueData>,
 }
 
 impl DBInternal {
     fn new() -> Self {
         Self {
             db: HashMap::new(),
-            expiry: LinkedList::new(),
         }
     }
 
@@ -86,18 +86,17 @@ impl DB {
       if let Err(e) = instance.rdb.load_rdb(&instance) {
         println!("Error loading RDB for this slave device: {:?}", e);
       }
-
         instance
     }
 
     pub fn add(
         &self,
-        key: KeyValueType,
-        value: String,
+        key: String,
+        value: KeyValueType,
         options: &getset::SetOptions,
     ) -> Result<(), String> {
         // TODO: convert into result type appropriately
-        println!("Adding {key} with value: {value}");
+        println!("Adding {key} with value: {:?}", value);
         let mut retval = Ok(());
         {
             let mut db = self.store.write().unwrap();
@@ -107,7 +106,7 @@ impl DB {
         retval
     }
 
-    pub fn remove(&self, key: &KeyValueType) -> Option<KeyValueType> {
+    pub fn remove(&self, key: &String) -> Option<KeyValueType> {
         if let Some(result) = self.store.write().unwrap().db.remove(key) {
             return Some(result.value);
         }

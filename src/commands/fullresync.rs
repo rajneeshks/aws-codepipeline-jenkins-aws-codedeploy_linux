@@ -1,8 +1,9 @@
 use crate::commands::incoming;
 use crate::store::db;
-use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
+
+#[allow(dead_code)]
 
 #[derive(Debug, Clone)]
 pub struct FullResync {

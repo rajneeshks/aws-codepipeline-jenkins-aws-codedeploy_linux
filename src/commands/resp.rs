@@ -206,6 +206,7 @@ impl DataType {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub fn to_wire(&self, ss: &str) -> String {
         match self {
             DataType::SimpleString(_s, _start, _end) => format!("+{}\r\n", ss),

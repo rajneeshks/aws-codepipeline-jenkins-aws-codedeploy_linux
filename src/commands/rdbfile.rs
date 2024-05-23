@@ -4,6 +4,8 @@ use crate::store::db;
 use std::net::TcpStream;
 use std::sync::Arc;
 
+#[allow(dead_code)]
+
 pub struct RDBFile<'a> {
     cmd: &'a Vec<u8>,
     replication_conn: bool,

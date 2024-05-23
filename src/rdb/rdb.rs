@@ -7,9 +7,6 @@ use std::io::prelude::*;
 use crate::commands::getset;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-enum RDBDataType {
-
-}
 pub struct RDB {
     directory: String,
     rdb_file: String,
@@ -42,7 +39,7 @@ impl RDB {
         let value = String::from_utf8_lossy(v);
         let mut options = getset::SetOptions::new();
         options.expiry_in_ms = expiry_in_ms;
-        db.add(key.into_owned(), value.into_owned(), &options)
+        db.add(key.into_owned(), db::KeyValueType::StringType(value.into_owned()), &options)
     }
 
     fn checksum(&self) -> bool {

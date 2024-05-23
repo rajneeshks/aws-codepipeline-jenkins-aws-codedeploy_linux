@@ -15,6 +15,7 @@ pub fn invalid(stream: &mut TcpStream) -> std::io::Result<()> {
     stream.write_all(format!("{}", d).as_bytes())
 }
 
+#[allow(dead_code)]
 pub struct InvalidCommand {
     replication_conn: bool,
 }

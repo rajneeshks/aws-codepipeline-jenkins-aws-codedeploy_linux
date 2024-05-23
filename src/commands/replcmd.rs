@@ -7,6 +7,8 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
+#[allow(dead_code)]
+
 #[derive(Debug, Clone)]
 pub struct ReplCommand<'a> {
     cmd: &'a Vec<String>,
@@ -22,7 +24,7 @@ impl<'a> ReplCommand<'a> {
 impl<'a> incoming::CommandHandler for ReplCommand<'a> {
     fn handle(
         &self,
-        stream: &mut TcpStream,
+        _stream: &mut TcpStream,
         _db: &Arc<db::DB>,
     ) -> std::io::Result<()> {
 

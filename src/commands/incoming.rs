@@ -12,7 +12,6 @@ use std::net::TcpStream;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-
 pub trait CommandHandler {
     fn handle(
         &self,
@@ -78,8 +77,8 @@ impl<'a, 'b> Incoming<'b> {
         for command in &self.commands {
             println!("processing command: {}", command);
             let mut handler = None;
-            let mut start = 0;
-            let mut end = 0;
+            let start;
+            let end;
             match command {
                 resp::DataType::SimpleString(ref cmd, _start, _end) => {
                     handler = Some(ss::simple_string_command_handler(cmd, self.replication_conn));
