@@ -128,7 +128,7 @@ impl<'a> incoming::CommandHandler for GetCommand<'a> {
                             format_args!("${}\r\n{}\r\n", val.chars().count(), val),
                         );
                     },
-                    db::KeyValueType::StreamType(val) => {
+                    db::KeyValueType::StreamType(_val) => {
                         // FILL ME UP PLEASE
                         let _ = std::fmt::write(
                             &mut response,
