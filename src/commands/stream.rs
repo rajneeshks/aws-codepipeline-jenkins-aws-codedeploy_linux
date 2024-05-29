@@ -84,8 +84,8 @@ impl<'a> Stream<'a> {
                 _ => { // we need to find the last sequence number
                     match existing_stream {
                         Some(v) => {
-                            let (_last_tstamp, last_seq) = v.last_entry_key();
-                            last_seq+1
+                            let (last_tstamp, last_seq) = v.last_entry_key();
+                            if last_tstamp == timestamp { last_seq+ 1 } else { 0 }
                         },
                         None => { if timestamp == 0 { 1 } else { 0 } },
                     }
