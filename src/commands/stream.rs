@@ -54,14 +54,18 @@ impl<'a> Stream<'a> {
                 }
             }
             
-            if ss[1] == "*" {
-                seq = None;
-            } else {
-                if let Ok(_seq) = ss[1].parse::<u64>() {
-                    seq = Some(_seq);
+            if ss.len() >= 2 {
+                if ss[1] == "*" {
+                    seq = None;
                 } else {
-                    return Err("Invalid Sequence number".to_string());
+                    if let Ok(_seq) = ss[1].parse::<u64>() {
+                        seq = Some(_seq);
+                    } else {
+                        return Err("Invalid Sequence number".to_string());
+                    }
                 }
+            } else {
+                seq = None;
             }
             return Ok((base, seq));
         }
