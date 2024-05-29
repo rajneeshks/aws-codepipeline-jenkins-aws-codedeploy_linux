@@ -119,6 +119,7 @@ impl<'a> incoming::CommandHandler for XRange<'a> {
                             Ok(((start, start_seq), (end, end_seq))) => {
                                 match self.build_response(&value, start, start_seq, end, end_seq) {
                                     Ok(res) => {
+                                        println!("Response: {}", res);
                                         let _ = std::fmt::write(&mut response,
                                             format_args!("{}", res));
                                     },
