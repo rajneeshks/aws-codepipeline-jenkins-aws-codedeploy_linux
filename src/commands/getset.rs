@@ -122,12 +122,19 @@ impl<'a> incoming::CommandHandler for GetCommand<'a> {
         if let Some(key) = array::get_nth_arg(cmd, 1) {
             if let Some(value) = db.get(key) {
                 match value {
-                    db::KeyValueType::StringType(val) | db::KeyValueType::StreamType(val) => {
+                    db::KeyValueType::StringType(val) => {
                         let _ = std::fmt::write(
                             &mut response,
                             format_args!("${}\r\n{}\r\n", val.chars().count(), val),
                         );
-                    }
+                    },
+                    db::KeyValueType::StreamType(val) => {
+                        // FILL ME UP PLEASE
+                        let _ = std::fmt::write(
+                            &mut response,
+                            format_args!("${}\r\n{}\r\n", "FIX-ME-STREAM-KEY-VALUE".chars().count(), "FIX-ME-STREAM-KEY-VALUE"),
+                        );
+                    },
                 };
             } else {
                 // did not find

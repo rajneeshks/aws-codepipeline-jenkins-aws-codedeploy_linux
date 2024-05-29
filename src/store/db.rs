@@ -2,6 +2,7 @@
 use crate::commands::getset;
 use crate::rdb::rdb;
 use crate::store::node_info;
+use crate::store::streams;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -13,7 +14,7 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone)]
 pub enum KeyValueType {
     StringType(String),
-    StreamType(String),
+    StreamType(streams::Streams),
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +96,6 @@ impl DB {
         value: KeyValueType,
         options: &getset::SetOptions,
     ) -> Result<(), String> {
-        // TODO: convert into result type appropriately
         println!("Adding {key} with value: {:?}", value);
         let retval;
         {
