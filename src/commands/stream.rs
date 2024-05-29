@@ -87,7 +87,7 @@ impl<'a> Stream<'a> {
                             let (_last_tstamp, last_seq) = v.last_entry_key();
                             last_seq+1
                         },
-                        None => { 1 },
+                        None => { if timestamp == 0 { 1 } else { 0 } },
                     }
                 }
             };
