@@ -11,6 +11,7 @@ use crate::commands::config;
 use crate::commands::keys;
 use crate::commands::ttype;
 use crate::commands::stream;
+use super::xrange;
 
 #[allow(dead_code)]
 
@@ -51,6 +52,8 @@ pub fn array_type_handler(
         return Box::new(ttype::TType::new(cmd, replication_conn));
     } else if cmd[0].contains("xadd") {
         return Box::new(stream::Stream::new(cmd, replication_conn));
+    } else if cmd[0].contains("xrange") {
+        return Box::new(xrange::XRange::new(cmd, replication_conn));
     }
 
     Box::new(ss::InvalidCommand::new(replication_conn))

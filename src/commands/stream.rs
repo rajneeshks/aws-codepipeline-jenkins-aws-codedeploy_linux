@@ -123,7 +123,6 @@ impl<'a> Stream<'a> {
                 if in_tstamp == 0 && in_seq == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)) }; 
             }
             for (tstamp, seq) in value.streams.keys() {
-                println!("incoming tstamp: {} vs db: {}, in seq: {:?} vs db {}", in_tstamp, tstamp, in_sequence, seq);
                 if in_tstamp < *tstamp { return Err(XADDErrors::TimeStampOlder(in_tstamp)); }
                 if in_sequence.is_some() {
                     let in_seq = in_sequence.unwrap();
@@ -171,7 +170,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                     }
                     // validate
                 } else {
-                    println!("---------------- existing key not found, adding new one --------------- ");
+
                 }
                 // save the key with value
                 if valid {
