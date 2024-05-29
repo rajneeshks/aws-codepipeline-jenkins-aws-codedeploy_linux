@@ -64,7 +64,7 @@ impl<'a> Stream<'a> {
         // split 1526919030474-0 (time stamp and seq-id)
         if let Ok((timestamp, seq)) = self.extract_timestamp() {
             // if the stream is empty - only then we reach here
-            if timestamp == 0 { return Err(XADDErrors::TimeStampInvalid(timestamp)); }
+            if timestamp == 0 && seq == 0 { return Err(XADDErrors::TimeStampInvalid(timestamp)); }
 
             // gather everything else and build an vector of strings
             let kvpairs = self.cmd.iter()
@@ -91,7 +91,7 @@ impl<'a> Stream<'a> {
                         return Err(XADDErrors::TimeStampOlder(in_tstamp));
                 }
             }
-            
+
             // If the stream is empty, the ID should be greater than 0-0
             if in_tstamp == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)); }
         }
