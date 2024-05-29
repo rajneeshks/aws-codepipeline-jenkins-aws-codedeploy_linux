@@ -21,4 +21,18 @@ impl Streams {
             streams: map,
         }
     }
+
+    #[allow(dead_code)]
+    pub fn build_kvpairs(&self) -> String {
+        "".to_string()
+    }
+
+    #[allow(dead_code)]
+    pub fn number_entries(&self) -> u64 {
+        self.streams.keys().count() as u64
+    }
+
+    pub fn last_entry_key(&self) -> (u128, u64) {
+        *self.streams.keys().last().unwrap()
+    }
 }

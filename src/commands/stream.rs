@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::commands::array;
 use crate::store::streams;
 use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[allow(dead_code)]
 enum XADDErrors {
@@ -38,37 +39,65 @@ impl<'a> Stream<'a> {
         Self {cmd, replication_conn}
     }
 
-    fn extract_timestamp(&self) -> Result<(u128, u64), String> {
+    fn extract_timestamp(&self) -> Result<(Option<u128>, Option<u64>), String> {
         if let Some(stamp) = array::get_nth_arg(self.cmd, 2) {
             let ss = stamp.split('-').collect::<Vec<&str>>();
-            let base: u128;
-            let seq: u64;
-            if let Ok(_base) = ss[0].parse::<u128>() {
-                base = _base;
+            let base: Option<u128>;
+            let seq: Option<u64>;
+            if ss[0] == "*" {
+                base = None;
             } else {
-                return Err("Invalid timestamp".to_string());
+                if let Ok(_base) = ss[0].parse::<u128>() {
+                    base = Some(_base);
+                } else {
+                    return Err("Invalid timestamp".to_string());
+                }
             }
             
-            if let Ok(_seq) = ss[1].parse::<u64>() {
-                seq = _seq;
+            if ss[1] == "*" {
+                seq = None;
             } else {
-                return Err("Invalid Sequence number".to_string());
+                if let Ok(_seq) = ss[1].parse::<u64>() {
+                    seq = Some(_seq);
+                } else {
+                    return Err("Invalid Sequence number".to_string());
+                }
             }
             return Ok((base, seq));
         }
         Err("Insufficient number of arguements to XADD command".to_string())
     }
 
-    fn build(&self) -> Result<streams::Streams, XADDErrors> {
+    fn build(&self, existing_stream: Option<&streams::Streams>) -> Result<streams::Streams, XADDErrors> {
         // XADD stream_key 1526919030474-0 temperature 36 humidity 95
         // split 1526919030474-0 (time stamp and seq-id)
-        if let Ok((timestamp, seq)) = self.extract_timestamp() {
+        if let Ok((in_timestamp, in_seq)) = self.extract_timestamp() {
+            let timestamp = match in_timestamp {
+                Some(v) => v,
+                _ => {
+                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
+                }
+            };
+
+            let seq = match in_seq {
+                Some(v) => v,
+                _ => { // we need to find the last sequence number
+                    match existing_stream {
+                        Some(v) => {
+                            let (_last_tstamp, last_seq) = v.last_entry_key();
+                            last_seq+1
+                        },
+                        None => { 0 },
+                    }
+                }
+            };
+
             // if the stream is empty - only then we reach here
             if timestamp == 0 && seq == 0 { return Err(XADDErrors::TimeStampInvalid(timestamp)); }
 
             // gather everything else and build an vector of strings
             let kvpairs = self.cmd.iter()
-                .skip(2)
+                .skip(3)
                 .fold(Vec::<String>::new(), |mut acc, s| {
                     acc.push(s.clone()); // create a copy for now
                     acc
@@ -80,15 +109,23 @@ impl<'a> Stream<'a> {
     }
 
     fn validate_timetamp(&self, value: &streams::Streams) -> Result<(), XADDErrors> {
-        if let Ok((in_tstamp, in_seq)) = self.extract_timestamp() {
-            // If the stream is empty, the ID should be greater than 0-0
-            if in_tstamp == 0 && in_seq == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)); }
+        if let Ok((in_timestamp, in_sequence)) = self.extract_timestamp() {
+            if in_timestamp.is_none() { return Ok(()); }
+            let in_tstamp = in_timestamp.unwrap();
 
+            if in_sequence.is_some() {
+                let in_seq = in_sequence.unwrap();
+                // If the stream is empty, the ID should be greater than 0-0
+                if in_tstamp == 0 && in_seq == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)) }; 
+            }
             for (tstamp, seq) in value.streams.keys() {
-                println!("incoming tstamp: {} vs db: {}, in seq: {} vs db {}", in_tstamp, tstamp, in_seq, seq);
-                if in_tstamp < *tstamp ||
-                    in_tstamp == *tstamp && in_seq <= *seq {
-                        return Err(XADDErrors::TimeStampOlder(in_tstamp));
+                println!("incoming tstamp: {} vs db: {}, in seq: {:?} vs db {}", in_tstamp, tstamp, in_sequence, seq);
+                if in_tstamp < *tstamp { return Err(XADDErrors::TimeStampOlder(in_tstamp)); }
+                if in_sequence.is_some() {
+                    let in_seq = in_sequence.unwrap();
+                    if in_tstamp <= *tstamp && in_seq <= *seq {
+                            return Err(XADDErrors::TimeStampOlder(in_tstamp));
+                    }
                 }
             }
 
@@ -104,6 +141,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
     fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
         let mut response = String::new();
         if let Some(skey) = array::get_nth_arg(self.cmd, 1) {
+            let mut existing_stream: Option<streams::Streams> = None;
             if let Some(skey_id) = array::get_nth_arg(self.cmd, 2) {
                 // check if key already exists
                 let mut valid = true;
@@ -119,6 +157,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                                         format_args!("-{}\r\n", e));
                                 }
                             };
+                            existing_stream = Some(value);
                         },
                         _ => {
                             valid = false;
@@ -132,7 +171,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                 }
                 // save the key with value
                 if valid {
-                    match self.build() {
+                    match self.build(existing_stream.as_ref()) {
                         Ok(value) => {
                             let options = getset::SetOptions::new();
                             let db_result = db.add(skey.clone(), db::KeyValueType::StreamType(value), &options);
