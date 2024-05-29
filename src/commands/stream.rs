@@ -82,6 +82,7 @@ impl<'a> Stream<'a> {
     fn validate_timetamp(&self, value: &streams::Streams) -> Result<(), XADDErrors> {
         if let Ok((in_tstamp, in_seq)) = self.extract_timestamp() {
             for (tstamp, seq) in value.streams.keys() {
+                println!("incoming tstamp: {} vs db: {}, in seq: {} vs db {}", in_tstamp, in_seq, tstamp, seq);
                 if in_tstamp < *tstamp ||
                     in_tstamp == *tstamp && in_seq <= *seq {
                         return Err(XADDErrors::TimeStampOlder(in_tstamp));
