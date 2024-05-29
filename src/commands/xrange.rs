@@ -18,21 +18,41 @@ impl<'a> XRange<'a> {
         Self {cmd, replication_conn}
     }
 
-    fn parse_options(&self) -> Result<(u128, u128), String> {
+    fn parse_options(&self) -> Result<((u128, u64), (u128, u64)), String> {
         // XRANGE some_key 1526985054069 1526985054079
         // XRANGE some_key - 1526985054079
         // XRANGE some_key 1526985054069 +
 
         let mut start = u128::MIN;
         let mut end =  u128::MAX;
+        let mut start_seq = u64::MIN;
+        let mut end_seq = u64::MAX;
+
         if let Some(v) = array::get_nth_arg(self.cmd, 2) {
             if v == "-" {  
                 start = u128::MIN; 
             } else {
-                if let Ok(_base) = v.parse::<u128>() {
-                    start = _base;
+                // see if this is complete key
+                if v.contains("-") {
+                    let ss = v.split('-').collect::<Vec<&str>>();
+                    if let Ok(_base) = ss[0].parse::<u128>() {
+                        start = _base;
+                    } else {
+                        return Err("Invalid timestamp".to_string());
+                    }
+                    if ss.len() >= 2 {
+                        if let Ok(_seq) = ss[1].parse::<u64>() {
+                            start_seq = _seq;
+                        } else {
+                            return Err("Invalid Sequence number to xrange command (start)".to_string());
+                        }
+                    }
                 } else {
-                    return Err("Invalid arguments to xrange command (start)".to_string());
+                    if let Ok(_base) = v.parse::<u128>() {
+                        start = _base;
+                    } else {
+                        return Err("Invalid arguments to xrange command (start)".to_string());
+                    }
                 }
             }
         }
@@ -41,18 +61,35 @@ impl<'a> XRange<'a> {
             if v == "-" {  
                 end = u128::MAX; 
             } else {
-                if let Ok(_base) = v.parse::<u128>() {
-                    end = _base;
+                // see if this is complete key
+                if v.contains("-") {
+                    let ss = v.split('-').collect::<Vec<&str>>();
+                    if let Ok(_base) = ss[0].parse::<u128>() {
+                        end = _base;
+                    } else {
+                        return Err("Invalid timestamp".to_string());
+                    }
+                    if ss.len() >= 2 {
+                        if let Ok(_seq) = ss[1].parse::<u64>() {
+                            end_seq = _seq;
+                        } else {
+                            return Err("Invalid Sequence number to xrange command (end)".to_string());
+                        }
+                    }
                 } else {
-                    return Err("Invalid arguments to xrange command (end)".to_string());
+                    if let Ok(_base) = v.parse::<u128>() {
+                        end = _base;
+                    } else {
+                        return Err("Invalid arguments to xrange command (end)".to_string());
+                    }
                 }
             }
         }
 
-        Ok((start, end))
+        Ok(((start, start_seq), (end, end_seq)))
     }
 
-    fn build_response(&self, stream: &streams::Streams, start: u128, end: u128) -> Result<String, String> {
+    fn build_response(&self, stream: &streams::Streams, start: u128, _start_seq: u64, end: u128, _end_seq: u64) -> Result<String, String> {
         let (count, response) = stream.streams.iter()
             .filter(|((ts, _seq), _value)| *ts >= start && *ts <= end)
             .fold((0, String::new()), |(count, mut acc), ((ts, seq), value)| {
@@ -79,8 +116,8 @@ impl<'a> incoming::CommandHandler for XRange<'a> {
                     db::KeyValueType::StreamType(value) => {
                         // found one - lets validate the timestamp and seq
                         match self.parse_options() {
-                            Ok((start, end)) => {
-                                match self.build_response(&value, start, end) {
+                            Ok(((start, start_seq), (end, end_seq))) => {
+                                match self.build_response(&value, start, start_seq, end, end_seq) {
                                     Ok(res) => {
                                         let _ = std::fmt::write(&mut response,
                                             format_args!("{}", res));
