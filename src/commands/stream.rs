@@ -98,10 +98,12 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
     fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
         let mut response = String::new();
         if let Some(skey) = array::get_nth_arg(self.cmd, 1) {
+            println!("skey: {}", skey);
             if let Some(skey_id) = array::get_nth_arg(self.cmd, 2) {
+                println!("skey_id: {}", skey_id);
                 // check if key already exists
                 let mut valid = true;
-                if let Some(existing_key) = db.get(skey_id) {
+                if let Some(existing_key) = db.get(skey) {
                     match existing_key {
                         db::KeyValueType::StreamType(value) => {
                             // found one - lets validate the timestamp and seq
@@ -121,6 +123,8 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                         }
                     }
                     // validate
+                } else {
+                    println!("---------------- existing key not found --------------- ");
                 }
                 // save the key with value
                 if valid {
