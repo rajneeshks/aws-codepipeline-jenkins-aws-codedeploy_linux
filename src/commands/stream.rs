@@ -18,8 +18,8 @@ enum XADDErrors {
 impl fmt::Display for XADDErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            XADDErrors::TimeStampOlder(_val) => write!(f, "ERR The ID specified in XADD is equal or smaller than the target stream top item", val),
-            XADDErrors::TimeStampInvalid(_val) => write!(f, "ERR The ID specified in XADD must be greater than {}-0", val),
+            XADDErrors::TimeStampOlder(_val) => write!(f, "ERR The ID specified in XADD is equal or smaller than the target stream top item"),
+            XADDErrors::TimeStampInvalid(val) => write!(f, "ERR The ID specified in XADD must be greater than {}-0", val),
             XADDErrors::InvalidArgs => write!(f, "-invalid arguments"),
         }
     }
