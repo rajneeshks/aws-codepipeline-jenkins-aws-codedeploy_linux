@@ -18,8 +18,8 @@ enum XADDErrors {
 impl fmt::Display for XADDErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            XADDErrors::TimeStampOlder(val) => write!(f, "-ERR The ID specified in XADD is equal or smaller than the target stream {} item", val),
-            XADDErrors::TimeStampInvalid(val) => write!(f, "-ERR The ID specified in XADD must be greater than {}-0", val),
+            XADDErrors::TimeStampOlder(_val) => write!(f, "ERR The ID specified in XADD is equal or smaller than the target stream top item", val),
+            XADDErrors::TimeStampInvalid(_val) => write!(f, "ERR The ID specified in XADD must be greater than {}-0", val),
             XADDErrors::InvalidArgs => write!(f, "-invalid arguments"),
         }
     }
@@ -82,7 +82,7 @@ impl<'a> Stream<'a> {
     fn validate_timetamp(&self, value: &streams::Streams) -> Result<(), XADDErrors> {
         if let Ok((in_tstamp, in_seq)) = self.extract_timestamp() {
             for (tstamp, seq) in value.streams.keys() {
-                println!("incoming tstamp: {} vs db: {}, in seq: {} vs db {}", in_tstamp, in_seq, tstamp, seq);
+                println!("incoming tstamp: {} vs db: {}, in seq: {} vs db {}", in_tstamp, tstamp, in_seq, seq);
                 if in_tstamp < *tstamp ||
                     in_tstamp == *tstamp && in_seq <= *seq {
                         return Err(XADDErrors::TimeStampOlder(in_tstamp));
@@ -98,9 +98,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
     fn handle(&self, stream: &mut TcpStream, db: &Arc<db::DB>) -> std::io::Result<()> {
         let mut response = String::new();
         if let Some(skey) = array::get_nth_arg(self.cmd, 1) {
-            println!("skey: {}", skey);
             if let Some(skey_id) = array::get_nth_arg(self.cmd, 2) {
-                println!("skey_id: {}", skey_id);
                 // check if key already exists
                 let mut valid = true;
                 if let Some(existing_key) = db.get(skey) {
@@ -124,7 +122,7 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                     }
                     // validate
                 } else {
-                    println!("---------------- existing key not found --------------- ");
+                    println!("---------------- existing key not found, adding new one --------------- ");
                 }
                 // save the key with value
                 if valid {
