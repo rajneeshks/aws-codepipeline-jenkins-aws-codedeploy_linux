@@ -130,7 +130,7 @@ impl<'a> Stream<'a> {
             }
 
             // If the stream is empty, the ID should be greater than 0-0
-            if in_tstamp == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)); }
+            //if in_tstamp == 0 { return Err(XADDErrors::TimeStampInvalid(in_tstamp)); }
         }
         Ok(())
     }
