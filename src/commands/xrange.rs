@@ -89,12 +89,12 @@ impl<'a> XRange<'a> {
         Ok(((start, start_seq), (end, end_seq)))
     }
 
-    fn build_response(&self, stream: &streams::Streams, start: u128, _start_seq: u64, end: u128, _end_seq: u64) -> Result<String, String> {
+    fn build_response(&self, stream: &streams::Streams, start: u128, start_seq: u64, end: u128, end_seq: u64) -> Result<String, String> {
         let (count, response) = stream.streams.iter()
-            .filter(|((ts, _seq), _value)| *ts >= start && *ts <= end)
+            .filter(|((ts, seq), _value)| *ts >= start && *seq >= start_seq && *ts <= end && *seq <= end_seq)
             .fold((0, String::new()), |(count, mut acc), ((ts, seq), value)| {
                 let field = format!("{}-{}", ts, seq);
-                let _ = std::fmt::write(&mut acc, format_args!("*2\r\n{}\r\n{}\r\n", field.len(), field));
+                let _ = std::fmt::write(&mut acc, format_args!("*2\r\n${}\r\n{}\r\n", field.len(), field));
                 // format the internal array (string)
                 let _ = std::fmt::write(&mut acc, format_args!("*{}\r\n", value.len()));
                 value.iter().for_each(|s| {
@@ -102,6 +102,7 @@ impl<'a> XRange<'a> {
                 });
                 (count+1, acc)
             });
+        println!("count: {count}, response: {response}");
         Ok(format!("*{}\r\n{}", count, response))
     }
 }
