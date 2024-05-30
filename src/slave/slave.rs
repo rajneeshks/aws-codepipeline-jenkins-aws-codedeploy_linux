@@ -367,7 +367,6 @@ impl Config {
     pub fn track_offset(&self, len: u64) {
         let synced = *self.in_sync.read().unwrap();
         if synced {
-            println!("actually adding {len} to offset, current value: {}", self.get_offset());
             *self.offset.write().unwrap() += len;
         }
     }
