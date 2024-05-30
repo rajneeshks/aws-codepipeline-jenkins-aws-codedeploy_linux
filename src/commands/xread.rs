@@ -12,6 +12,7 @@ use std::thread;
 #[derive(Debug, Clone)]
 struct KeyOptions {
     key: String,
+    placeholder: String,
     timestamp: u128,
     seq: u64,
 }
@@ -20,6 +21,7 @@ impl KeyOptions {
     fn new(key: String) -> Self {
         Self {
             key,
+            placeholder: "".to_string(),
             timestamp: 0,
             seq: 0,
         }
@@ -82,6 +84,9 @@ impl<'a> XRead<'a> {
                         if v == "-" {  
                             keys[keyidx].timestamp = u128::MIN;
                             keyidx += 1;
+                        } else if v == "$" {
+                            keys[keyidx].placeholder = "$".to_string();
+                            keyidx += 1;
                         } else {
                             // see if this is complete key
                             if v.contains("-") {
@@ -118,6 +123,29 @@ impl<'a> XRead<'a> {
         Ok(())
     }
 
+    // update_options
+    //
+    // fills in the replacement for "$" in the timestamp - only new ones
+    fn update_options(&self, key: &str, stream: &streams::Streams) {
+        let mut keys = self.keys.write().unwrap();
+        for i in 0..keys.len() {
+            if keys[i].key == key {
+                if keys[i].placeholder == "$" {
+                    match stream.streams.iter().last() {
+                        Some((k, _)) => {
+                            keys[i].timestamp = k.0;
+                            keys[i].seq = k.1;
+                        },
+                        None => {
+                            keys[i].timestamp = u128::MIN;
+                            keys[i].seq = u64::MIN;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn build_response(&self, stream: &streams::Streams, idx: usize) -> Result<String, String> {
         let keys = self.keys.read().unwrap();
         build_response_internal(stream, &keys[idx].key, keys[idx].timestamp, keys[idx].seq)
@@ -136,6 +164,7 @@ impl<'a> incoming::CommandHandler for XRead<'a> {
                 if let Some(existing_key) = db.get(&k) {
                     match existing_key {
                         db::KeyValueType::StreamType(value) => {
+                            self.update_options(&k, &value);    // populate replacements for $ if any
                             // found one - lets validate the timestamp and seq
                             match self.build_response(&value, i) {
                                 Ok(res) => {
@@ -219,8 +248,6 @@ pub fn blocking_xread_thread(db: Arc<db::DB>, key: String, mut stream: TcpStream
     let now = Instant::now();
     let mut responded = false;
 
-    println!("Im in blocking xread thread with timeout: {timeout} milli-seconds");
-
     while now.elapsed() < wait_time || timeout == 0 {
         thread::sleep(sleep_duration);
 
@@ -232,7 +259,6 @@ pub fn blocking_xread_thread(db: Arc<db::DB>, key: String, mut stream: TcpStream
                     match build_response_internal(&value, &key, timestamp, cmd_seq) {
                         Ok(res) => {
                             let res = format!("*1\r\n{}", res);
-                            println!("block thread responding with: {}", res);
                             let _ = stream.write_all(res.as_bytes());
                             responded = true;
                             break;
