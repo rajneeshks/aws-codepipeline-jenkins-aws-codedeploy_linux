@@ -144,34 +144,23 @@ impl<'a> incoming::CommandHandler for XRead<'a> {
                                 Err(_e) => { // possibly blocking read command
                                     let block = *self.block.read().unwrap();
                                     if let Some(interval) = block {
-                                        thread::sleep(Duration::from_millis(interval));
-                                        match self.build_response(&value, i) {
-                                            Ok(res) => {
-                                                i_responses.push(res);
-                                            },
-                                            Err(_) => {
-                                                return stream.write_all(b"-1\r\n");
+                                        let db_clone = Arc::clone(&db);
+                                        let stream_cloned: TcpStream;
+                                        match stream.try_clone() {
+                                            Ok(c) => stream_cloned = c,
+                                            Err(e) => {
+                                                return stream.write_all(format!("-Unable to clone stream for xread block: {}\r\n", e).as_bytes());
                                             }
-                                        };
-                                        if false {
-                                            let db_clone = Arc::clone(&db);
-                                            let stream_cloned: TcpStream;
-                                            match stream.try_clone() {
-                                                Ok(c) => stream_cloned = c,
-                                                Err(e) => {
-                                                    return stream.write_all(format!("-Unable to clone stream for xread block: {}\r\n", e).as_bytes());
-                                                }
-                                            };                                        
-                                            let timestamp = self.keys.read().unwrap()[i].timestamp;
-                                            let cmd_seq = self.keys.read().unwrap()[i].seq;
-                                            let _ = thread::spawn(move || 
-                                                blocking_xread_thread(db_clone, k, stream_cloned, interval,
-                                                    timestamp, cmd_seq));
-                                            // thread will handle return statement - this CLI is returning
-                                            return Ok(());
-                                        }
+                                        };                                        
+                                        let timestamp = self.keys.read().unwrap()[i].timestamp;
+                                        let cmd_seq = self.keys.read().unwrap()[i].seq;
+                                        let _ = thread::spawn(move || 
+                                            blocking_xread_thread(db_clone, k, stream_cloned, interval,
+                                                timestamp, cmd_seq));
+                                        // thread will handle the response - this CLI is returning
+                                        return Ok(());
                                     };
-                                    //return stream.write_all(b"-1\r\n");
+                                    return stream.write_all(b"-1\r\n");
                                 }
                             }
                         },
@@ -245,7 +234,6 @@ pub fn blocking_xread_thread(db: Arc<db::DB>, key: String, mut stream: TcpStream
                             println!("block thread responding with: {}", res);
                             let _ = stream.write_all(res.as_bytes());
                             responded = true;
-                            break;
                         },
                         Err(_e) => {},
                     };
