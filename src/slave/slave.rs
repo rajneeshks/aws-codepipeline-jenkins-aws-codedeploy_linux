@@ -406,7 +406,7 @@ pub fn slave_thread(
         if let Ok(len) = stream.read(&mut buf) {
             
             if len <= 0 {
-                println!("read {len} bytes and hence existing...");
+                //println!("read {len} bytes and hence existing...");
                 break;
             }
             unsafe {

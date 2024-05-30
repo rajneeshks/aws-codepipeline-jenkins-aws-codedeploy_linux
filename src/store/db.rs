@@ -150,7 +150,7 @@ impl DB {
         seq: u64,
         kvpairs: Vec<String>,
     ) -> Result<(), String> {
-        println!("Adding {key} with value: {:?}", value);
+        println!("Adding {key}/{timestamp}-{seq} with value: {:?}", kvpairs);
         let retval;
         {
             let mut db = self.store.write().unwrap();

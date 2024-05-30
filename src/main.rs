@@ -44,7 +44,6 @@ fn handle_connection(
 
     while let Ok(len) = stream.read(&mut buf) {
         if len <= 0 {
-            println!("read {len} bytes and hence existing...");
             break;
         }
         unsafe {
@@ -60,7 +59,6 @@ fn handle_connection(
         }
     }
 
-    println!("Done with this socket - closing....");
     let _ = stream.shutdown(Shutdown::Both);
 }
 
