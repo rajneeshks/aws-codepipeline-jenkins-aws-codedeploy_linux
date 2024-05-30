@@ -52,6 +52,7 @@ impl DBInternal {
         }
     }
 
+    // adds key into the store
     fn add(
         &mut self,
         key: String,
@@ -64,6 +65,40 @@ impl DBInternal {
             .entry(key)
             .and_modify(|val| *val = v.clone())
             .or_insert(v);
+        //TODO: return appropriately
+        Ok(())
+    }
+
+    // adds entry into stream
+    fn xadd(
+        &mut self,
+        key: String,
+        value: KeyValueType,
+        options: &getset::SetOptions,
+        timestamp: u128,
+        seq: u64,
+        kvpairs: Vec<String>,
+    ) -> Result<(), String> {
+        let _ = self
+            .db
+            .entry(key.clone())
+            .and_modify(|val| {
+                match &mut val.value {
+                    KeyValueType::StreamType(s) => {
+                        // add the key into streams
+                        s.streams.insert((timestamp, seq), kvpairs.clone());
+                    },
+                    KeyValueType::StringType(_s) => {
+                        let v = KeyValueData::new(key.clone(), value.clone(), options);
+                        *val = v.clone();
+                    }
+                }
+            })
+            .or_insert_with(||{
+                let vv: streams::Streams = streams::Streams::new(timestamp, seq, kvpairs);
+                let v = KeyValueData::new(key.clone(), KeyValueType::StreamType(vv.clone()), options);
+                v
+            });
         //TODO: return appropriately
         Ok(())
     }
@@ -101,6 +136,25 @@ impl DB {
         {
             let mut db = self.store.write().unwrap();
             retval = db.add(key, value, options);
+        }
+        println!("DB at this stage: {:?}", self.store.read().unwrap().db);
+        retval
+    }
+
+    pub fn xadd(
+        &self,
+        key: String,
+        value: KeyValueType,
+        options: &getset::SetOptions,
+        timestamp: u128,
+        seq: u64,
+        kvpairs: Vec<String>,
+    ) -> Result<(), String> {
+        println!("Adding {key} with value: {:?}", value);
+        let retval;
+        {
+            let mut db = self.store.write().unwrap();
+            retval = db.xadd(key, value, options, timestamp, seq, kvpairs);
         }
         println!("DB at this stage: {:?}", self.store.read().unwrap().db);
         retval

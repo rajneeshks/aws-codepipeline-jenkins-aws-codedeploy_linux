@@ -72,7 +72,7 @@ impl<'a> Stream<'a> {
         Err("Insufficient number of arguements to XADD command".to_string())
     }
 
-    fn build(&self, existing_stream: Option<&streams::Streams>) -> Result<(streams::Streams, String), XADDErrors> {
+    fn build(&self, existing_stream: Option<&streams::Streams>) -> Result<(u128, u64, Vec<String>, String), XADDErrors> {
         // XADD stream_key 1526919030474-0 temperature 36 humidity 95
         // split 1526919030474-0 (time stamp and seq-id)
         if let Ok((in_timestamp, in_seq)) = self.extract_timestamp() {
@@ -107,7 +107,7 @@ impl<'a> Stream<'a> {
                     acc
                 });
 
-            return Ok((streams::Streams::new(timestamp, seq, kvpairs), format!("{}-{}", timestamp, seq)));
+            return Ok((timestamp, seq, kvpairs, format!("{}-{}", timestamp, seq)));
         }
         Err(XADDErrors::InvalidArgs)
     }
@@ -175,9 +175,10 @@ impl<'a> incoming::CommandHandler for Stream<'a> {
                 // save the key with value
                 if valid {
                     match self.build(existing_stream.as_ref()) {
-                        Ok((value, keyid)) => {
+                        Ok((timestamp, seq, kvpairs, keyid)) => {
                             let options = getset::SetOptions::new();
-                            let db_result = db.add(skey.clone(), db::KeyValueType::StreamType(value), &options);
+                            let db_result = db.xadd(skey.clone(),
+                                db::KeyValueType::StringType("".to_string()), &options, timestamp, seq, kvpairs);
                             if db_result.is_err() {
                                 println!("Error writing into the DB");
                                 return Err(std::io::Error::new(std::io::ErrorKind::Other,
