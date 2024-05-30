@@ -231,9 +231,11 @@ pub fn blocking_xread_thread(db: Arc<db::DB>, key: String, mut stream: TcpStream
                     // found one - lets validate the timestamp and seq
                     match build_response_internal(&value, &key, timestamp, cmd_seq) {
                         Ok(res) => {
+                            let res = format!("*1\r\n{}", res);
                             println!("block thread responding with: {}", res);
                             let _ = stream.write_all(res.as_bytes());
                             responded = true;
+                            break;
                         },
                         Err(_e) => {},
                     };
