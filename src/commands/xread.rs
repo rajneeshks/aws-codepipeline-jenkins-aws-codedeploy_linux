@@ -60,18 +60,17 @@ impl<'a> XRead<'a> {
                         let ss = v.split('-').collect::<Vec<&str>>();
                         if let Ok(_base) = ss[0].parse::<u128>() {
                             keys[keyidx].timestamp = _base;
-                            keyidx += 1;
                         } else {
                             return Err("Invalid timestamp to xread command".to_string());
                         }
                         if ss.len() >= 2 {
                             if let Ok(_seq) = ss[1].parse::<u64>() {
                                 keys[keyidx].seq = _seq;
-                                keyidx += 1;
                             } else {
                                 return Err("Invalid Sequence number to xread command (key)".to_string());
                             }
                         }
+                        keyidx += 1;
                     } else {
                         if let Ok(_base) = v.parse::<u128>() {
                             keys[keyidx].timestamp = _base;
@@ -93,7 +92,7 @@ impl<'a> XRead<'a> {
     fn build_response(&self, stream: &streams::Streams, idx: usize) -> Result<String, String> {
         let keys = self.keys.read().unwrap();
         let (count, response) = stream.streams.iter()
-            .filter(|((ts, seq), _value)| *ts > keys[idx].timestamp && *seq > keys[idx].seq)
+            .filter(|((ts, seq), _value)| *ts >= keys[idx].timestamp && *seq > keys[idx].seq)
             .fold((0, String::new()), |(count, mut acc), ((ts, seq), value)| {
                 let field = format!("{}-{}", ts, seq);
                 let _ = std::fmt::write(&mut acc, format_args!("*2\r\n${}\r\n{}\r\n", field.len(), field));
@@ -105,7 +104,7 @@ impl<'a> XRead<'a> {
                 (count+1, acc)
             });
         println!("key: {}, count: {count}, response: {response}", keys[idx].key);
-        Ok(format!("*{}\r\n${}\r\n{}\r\n{}", count, keys[idx].key.len(), keys[idx].key, response))
+        Ok(format!("*{}\r\n${}\r\n{}\r\n*{}\r\n{}", count+1, keys[idx].key.len(), keys[idx].key, count, response))
     }
 }
 
@@ -117,10 +116,13 @@ impl<'a> incoming::CommandHandler for XRead<'a> {
             let num_keys = self.keys.read().unwrap().len();
             let mut i_responses = Vec::with_capacity(num_keys);
             for i in 0..num_keys {
-                if let Some(existing_key) = db.get(&self.keys.read().unwrap()[i].key) {
+                let k = self.keys.read().unwrap()[i].key.clone();
+                println!("Looking for data associated with key: {}", k);
+                if let Some(existing_key) = db.get(&k) {
                     match existing_key {
                         db::KeyValueType::StreamType(value) => {
                             // found one - lets validate the timestamp and seq
+                            println!("value for the stream: {:?}", value);
                             match self.build_response(&value, i) {
                                 Ok(res) => {
                                     println!("Response: {}", res);
@@ -148,6 +150,7 @@ impl<'a> incoming::CommandHandler for XRead<'a> {
             let _ = std::fmt::write(&mut response,
                 format_args!("-invalid command\r\n"));
         }
+        println!("Final response: {}", response);
         stream.write_all(response.as_bytes())
     }
 }
