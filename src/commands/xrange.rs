@@ -58,7 +58,7 @@ impl<'a> XRange<'a> {
         }
 
         if let Some(v) = array::get_nth_arg(self.cmd, 3) {
-            if v == "-" {  
+            if v == "+" {  
                 end = u128::MAX; 
             } else {
                 // see if this is complete key
